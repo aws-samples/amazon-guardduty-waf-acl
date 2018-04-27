@@ -1,0 +1,145 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Demonstrates how to use GuardDuty Findings to automate WAF ACL and VPC NACL entries.
+  The template installs a Lambda function that updates an AWS WAF IP Set and VPC NACL. This
+  relies on you creating an *incoming web hook* in your slack account and simply passing
+  the URL as a parameter to this template
+
+Parameters:
+  ArtifactsBucket:
+    Description: S3 bucket with artifact files (Lambda functions, templates, html files, etc.). Leave default for N. Virginia.
+    Type: String
+    Default: cgull-artifacts
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: ArtifactsBucket S3 bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+  ArtifactsPrefix:
+    Description: Path in the S3 bucket containing artifact files. Leave default for N. Virginia.
+    Type: String
+    Default: public/sample/GuardDutytoACL/
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: ArtifactsPrefix key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-),
+      and forward slash (/).
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Artifact
+      Parameters:
+      - ArtifactsBucket
+      - ArtifactsPrefix
+
+Resources:
+  GuardDutytoNACLLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: "GuardDuty to ACL Function"
+      Handler : "guardduty_to_acl_lambda.lambda_handler"
+      MemorySize: 128
+      Timeout: 300
+      Role: !GetAtt GuardDutytoNACLRole.Arn
+      Runtime : "python3.6"
+      Environment:
+        Variables:
+          ACLMETATABLE: !Ref GuardDutytoNACLDDBTable
+      Code:
+        S3Bucket: !Sub ${ArtifactsBucket}-${AWS::Region}
+        S3Key: !Sub ${ArtifactsPrefix}guardduty_to_acl_lambda.zip
+
+  GuardDutytoNACLRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              "sts:AssumeRole"
+      Path: "/"
+
+  GuardDutytoNACLPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "guardduty-to-nacl"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: "Allow"
+            Action:
+              - "ec2:Describe*"
+              - "ec2:*NetworkAcl*"
+            Resource: "*"
+          -
+            Effect: "Allow"
+            Action:
+              - "logs:CreateLogGroup"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: "arn:aws:logs:*:*:*"
+          -
+            Effect: Allow
+            Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:DeleteItem
+            Resource: !Sub '${GuardDutytoNACLDDBTable.Arn}'
+      Roles:
+        -
+          Ref: "GuardDutytoNACLRole"
+
+  # GuardDuty CloudWatch Event - For GuardDuty Finding:
+  GuardDutytoNACLEvent:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Description: "GuardDuty Malicious Host Events"
+      EventPattern:
+        source:
+        - aws.guardduty
+        detail:
+          type:
+          - "UnauthorizedAccess:EC2/SSHBruteForce"
+          - "UnauthorizedAccess:EC2/RDPBruteForce"
+          - "Recon:EC2/PortProbeUnprotectedPort"
+      State: "ENABLED"
+      Targets:
+        -
+          Arn: !GetAtt GuardDutytoNACLLambda.Arn
+          Id: "GuardDutyEvent-Lambda-Trigger"
+
+  GuardDutytoNACLInvokePermissions:
+    DependsOn:
+      - GuardDutytoNACLLambda
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !Ref "GuardDutytoNACLLambda"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+
+  GuardDutytoNACLDDBTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "NetACLId"
+          AttributeType: "S"
+        -
+          AttributeName: "CreatedAt"
+          AttributeType: "N"
+      KeySchema:
+        -
+          AttributeName: "NetACLId"
+          KeyType: "HASH"
+        -
+          AttributeName: "CreatedAt"
+          KeyType: "RANGE"
+      ProvisionedThroughput:
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
