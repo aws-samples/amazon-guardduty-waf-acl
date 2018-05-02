@@ -26,13 +26,43 @@ logger.setLevel(logging.INFO)
 #======================================================================================================================
 # Variables
 #======================================================================================================================
-
+API_CALL_NUM_RETRIES = 1
 ACLMETATABLE = os.environ['ACLMETATABLE']
 
 #======================================================================================================================
 # Auxiliary Functions
 #======================================================================================================================
+def waf_update_ip_set(waf_type, ip_set_id, source_ip):
+    if (waf_type == 'alb'):
+    	session = boto3.session.Session(region_name=os.environ['REGION'])
+        waf = session.client('waf-regional')
+    else
+    	waf = boto3.client('waf')
+    for attempt in range(API_CALL_NUM_RETRIES):
+        try:
+            response = waf.update_ip_set(IPSetId=ip_set_id,
+                ChangeToken=waf.get_change_token()['ChangeToken'],
+                Updates=[{
+                    'Action': 'INSERT',
+                    'IPSetDescriptor': {
+                        'Type': 'IPV4',
+                        'Value': "%s/32"%source_ip
+                    }
+                }]
+            )
+        except Exception as e:
+            print(e)
+            delay = math.pow(2, attempt)
+            print("[waf_update_ip_set] Retrying in %d seconds..." % (delay))
+            time.sleep(delay)
+        else:
+            break
+    else:
+        print("[waf_update_ip_set] Failed ALL attempts to call API")
+
+
 def get_netacl_id(subnet_id):
+
     try:
         ec2 = boto3.client('ec2')
         response = ec2.describe_network_acls(
@@ -45,6 +75,7 @@ def get_netacl_id(subnet_id):
                 }
             ]
         )
+
 
         netacls = response['NetworkAcls'][0]['Associations']
 
@@ -209,7 +240,6 @@ def delete_netacl_rule(netacl_id, rule_no):
     else:
         return False
 
-
 def create_ddb_rule(netacl_id, host_ip, rule_no):
 
     ddb = boto3.resource('dynamodb')
@@ -272,6 +302,9 @@ def lambda_handler(event, context):
             HostIp = event["detail"]["service"]["action"]["networkConnectionAction"]["remoteIpDetails"]["ipAddressV4"]
             instanceID = event["detail"]["resource"]["instanceDetails"]["instanceId"]
             NetworkAclId = get_netacl_id(subnet_id=SubnetId)
+
+        waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], HostIp)
+        waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], HostIp)
 
         if NetworkAclId:
             response = update_nacl(netacl_id=NetworkAclId,host_ip=HostIp)

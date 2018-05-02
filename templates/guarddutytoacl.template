@@ -6,10 +6,17 @@ Description: Demonstrates how to use GuardDuty Findings to automate WAF ACL and 
   the URL as a parameter to this template
 
 Parameters:
+  Retention:
+    Description: How long to retain IP addresses in the blacklist (in minutes).
+    Type: Number
+    Default: 60
+    MinValue: 5
+    MaxValue: 10080
+    ConstraintDescription: Minimum of 5 minutes and maximum of 10080 (one week).
   ArtifactsBucket:
     Description: S3 bucket with artifact files (Lambda functions, templates, html files, etc.). Leave default for N. Virginia.
     Type: String
-    Default: cgull-artifacts
+    Default: atomic-artifacts
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription: ArtifactsBucket S3 bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-).
       It cannot start or end with a hyphen (-).
@@ -36,13 +43,15 @@ Resources:
     Properties:
       Description: "GuardDuty to ACL Function"
       Handler : "guardduty_to_acl_lambda.lambda_handler"
-      MemorySize: 128
+      MemorySize: 1024
       Timeout: 300
       Role: !GetAtt GuardDutytoNACLRole.Arn
       Runtime : "python3.6"
       Environment:
         Variables:
           ACLMETATABLE: !Ref GuardDutytoNACLDDBTable
+          ALB_IP_SET_ID:  !Ref ALBBlacklistIPSet
+          CLOUDFRONT_IP_SET_ID:  !Ref CloudFrontBlacklistIPSet
       Code:
         S3Bucket: !Sub ${ArtifactsBucket}-${AWS::Region}
         S3Key: !Sub ${ArtifactsPrefix}guardduty_to_acl_lambda.zip
@@ -65,10 +74,27 @@ Resources:
   GuardDutytoNACLPolicy:
     Type: AWS::IAM::Policy
     Properties:
-      PolicyName: "guardduty-to-nacl"
+      PolicyName: "guardduty-to-nacl-wafipset"
       PolicyDocument:
         Version: 2012-10-17
         Statement:
+          -
+            Effect: Allow
+            Action:
+            - waf:GetIPSet
+            - waf:UpdateIPSet
+            Resource: !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${CloudFrontBlacklistIPSet}'
+          -
+            Effect: Allow
+            Action:
+            - waf:GetIPSet
+            - waf:UpdateIPSet
+            Resource: !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${ALBBlacklistIPSet}'
+          -
+            Effect: Allow
+            Action:
+            - waf:GetChangeToken
+            Resource: !Sub 'arn:aws:waf::${AWS::AccountId}:changetoken/*'
           -
             Effect: "Allow"
             Action:
@@ -143,3 +169,180 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: "5"
         WriteCapacityUnits: "5"
+
+  CloudFrontBlacklistIPSet: 
+    Type: AWS::WAF::IPSet
+    Properties: 
+      Name: "CloudFront IPSet for blacklisted IP adresses"
+      IPSetDescriptors: 
+        - 
+          Type: "IPV4"
+          Value: "127.0.0.1/32"
+
+  CloudFrontBlacklistIPSetRule: 
+    Type: AWS::WAF::Rule
+    Properties: 
+      Name: "CloudFrontBlacklistIPSetRule"
+      MetricName: "IPSetRule"
+      Predicates: 
+        - 
+          DataId: 
+            Ref: "CloudFrontBlacklistIPSet"
+          Negated: false
+          Type: "IPMatch"
+
+  CloudFrontBlacklistWebACL: 
+    Type: AWS::WAF::WebACL
+    Properties: 
+      Name: "CloudFront WebACL to block blacklisted IP addresses"
+      DefaultAction: 
+        Type: "ALLOW"
+      MetricName: "CloudFrontBlacklistWebACL"
+      Rules: 
+        - 
+          Action: 
+            Type: "BLOCK"
+          Priority: 1
+          RuleId: 
+            Ref: "CloudFrontBlacklistIPSetRule"
+
+  ALBBlacklistIPSet: 
+    Type: AWS::WAFRegional::IPSet
+    Properties: 
+      Name: "ALB IPSet for blacklisted IP adresses"
+      IPSetDescriptors: 
+        - 
+          Type: "IPV4"
+          Value: "127.0.0.1/32"
+
+  ALBBlacklistIPSetRule: 
+    Type: AWS::WAFRegional::Rule
+    Properties: 
+      Name: "ALBBlacklistIPSetRule"
+      MetricName: "IPSetRule"
+      Predicates: 
+        - 
+          DataId: 
+            Ref: "ALBBlacklistIPSet"
+          Negated: false
+          Type: "IPMatch"
+
+  ALBBlacklistWebACL: 
+    Type: AWS::WAFRegional::WebACL
+    Properties: 
+      Name: "ALB WebACL to block blacklisted IP addresses"
+      DefaultAction: 
+        Type: "ALLOW"
+      MetricName: "ALBBlacklistWebACL"
+      Rules: 
+        - 
+          Action: 
+            Type: "BLOCK"
+          Priority: 1
+          RuleId: 
+            Ref: "ALBBlacklistIPSetRule"
+
+  PruneOldEntriesLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: "Prune old entries in WAF ACL and NACLs"
+      Handler : "prune_old_entries.lambda_handler"
+      MemorySize: 1024
+      Timeout: 300
+      Role: !GetAtt PruneOldEntriesRole.Arn
+      Runtime : "python3.6"
+      Environment:
+        Variables:
+          ACLMETATABLE: !Ref GuardDutytoNACLDDBTable
+          ALB_IP_SET_ID:  !Ref ALBBlacklistIPSet
+          CLOUDFRONT_IP_SET_ID:  !Ref CloudFrontBlacklistIPSet
+          RETENTION: !Ref Retention
+      Code:
+        S3Bucket: !Sub ${ArtifactsBucket}-${AWS::Region}
+        S3Key: !Sub ${ArtifactsPrefix}prune_old_entries.zip
+
+  PruneOldEntriesRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              "sts:AssumeRole"
+      Path: "/"
+
+  PruneOldEntriesPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "prune-old-entries"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Action:
+            - waf:GetIPSet
+            - waf:UpdateIPSet
+            Resource: !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${CloudFrontBlacklistIPSet}'
+          -
+            Effect: Allow
+            Action:
+            - waf:GetIPSet
+            - waf:UpdateIPSet
+            Resource: !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${ALBBlacklistIPSet}'
+          -
+            Effect: Allow
+            Action:
+            - waf:GetChangeToken
+            Resource: !Sub 'arn:aws:waf::${AWS::AccountId}:changetoken/*'
+          -
+            Effect: "Allow"
+            Action:
+              - "ec2:Describe*"
+              - "ec2:*NetworkAcl*"
+            Resource: "*"
+          -
+            Effect: "Allow"
+            Action:
+              - "logs:CreateLogGroup"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: "arn:aws:logs:*:*:*"
+          -
+            Effect: Allow
+            Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:DeleteItem
+            Resource: !Sub '${GuardDutytoNACLDDBTable.Arn}'
+      Roles:
+        -
+          Ref: "PruneOldEntriesRole"
+
+  PruneOldEntriesSchedule: 
+    Type: "AWS::Events::Rule"
+    Properties: 
+      Description: "ScheduledPruningRule"
+      ScheduleExpression: "rate(5 minutes)"
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: !GetAtt PruneOldEntriesLambda.Arn
+          Id: "TargetFunctionV1"
+
+  PruneOldEntriesPermissionToInvoke: 
+    DependsOn:
+      - GuardDutytoNACLLambda
+    Type: "AWS::Lambda::Permission"
+    Properties: 
+      FunctionName: !Ref PruneOldEntriesLambda
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt PruneOldEntriesSchedule.Arn
