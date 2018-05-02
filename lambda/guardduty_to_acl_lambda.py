@@ -33,26 +33,28 @@ ACLMETATABLE = os.environ['ACLMETATABLE']
 # Auxiliary Functions
 #======================================================================================================================
 def get_netacl_id(subnet_id):
+    try:
+        ec2 = boto3.client('ec2')
+        response = ec2.describe_network_acls(
+            Filters=[
+                {
+                    'Name': 'association.subnet-id',
+                    'Values': [
+                        subnet_id,
+                    ]
+                }
+            ]
+        )
 
-    ec2 = boto3.client('ec2')
-    response = ec2.describe_network_acls(
-        Filters=[
-            {
-                'Name': 'association.subnet-id',
-                'Values': [
-                    subnet_id,
-                ]
-            }
-        ]
-    )
+        netacls = response['NetworkAcls'][0]['Associations']
 
-    netacls = response['NetworkAcls'][0]['Associations']
+        for i in netacls:
+            if i['SubnetId'] == subnet_id:
+                netaclid = i['NetworkAclId']
 
-    for i in netacls:
-        if i['SubnetId'] == subnet_id:
-            netaclid = i['NetworkAclId']
-
-    return netaclid
+        return netaclid
+    except Exception as e:
+        return []
 
 
 def get_nacl_meta(netacl_id):
@@ -271,8 +273,12 @@ def lambda_handler(event, context):
             instanceID = event["detail"]["resource"]["instanceDetails"]["instanceId"]
             NetworkAclId = get_netacl_id(subnet_id=SubnetId)
 
-        response = update_nacl(netacl_id=NetworkAclId,host_ip=HostIp)
+        if NetworkAclId:
+            response = update_nacl(netacl_id=NetworkAclId,host_ip=HostIp)
+        else:
+            logger.info("Unable to determine NetworkAclId for instanceID: %s, HostIp: %s, SubnetId: %s. Confirm resources exist." % (instanceID, HostIp, SubnetId))
+            pass
 
     except Exception as e:
-        logger.error('something went wrong')
+        logger.error('Something went wrong.')
         raise
