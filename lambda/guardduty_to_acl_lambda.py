@@ -38,7 +38,7 @@ ACLMETATABLE = os.environ['ACLMETATABLE']
 def waf_update_ip_set(waf_type, ip_set_id, source_ip):
 
     if waf_type == 'alb':
-        session = boto3.session.Session(region_name=os.environ['REGION'])
+        session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
         waf = session.client('waf-regional')
     elif waf_type == 'cloudfront':
         waf = boto3.client('waf')
