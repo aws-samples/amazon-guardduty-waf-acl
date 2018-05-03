@@ -87,19 +87,19 @@ Resources:
           -
             Effect: Allow
             Action:
-            - waf:GetIPSet
-            - waf:UpdateIPSet
-            Resource: !Sub 'arn:aws:waf-regional::${AWS::AccountId}:ipset/${ALBBlacklistIPSet}'
+            - waf-regional:GetIPSet
+            - waf-regional:UpdateIPSet
+            Resource: !Sub 'arn:aws:waf-regional:${AWS::Region}:${AWS::AccountId}:ipset/${ALBBlacklistIPSet}'
           -
             Effect: Allow
             Action:
             - waf:GetChangeToken
-            Resource: !Sub 'arn:aws:waf::${AWS::AccountId}:changetoken/*'
+            Resource: "*"
           -
             Effect: Allow
             Action:
-            - waf:GetChangeToken
-            Resource: !Sub 'arn:aws:waf-regional::${AWS::AccountId}:changetoken/*'
+            - waf-regional:GetChangeToken
+            Resource: "*"
           -
             Effect: "Allow"
             Action:
@@ -297,19 +297,19 @@ Resources:
           -
             Effect: Allow
             Action:
-            - waf:GetIPSet
-            - waf:UpdateIPSet
-            Resource: !Sub 'arn:aws:waf-regional::${AWS::AccountId}:ipset/${ALBBlacklistIPSet}'
+            - waf-regional:GetIPSet
+            - waf-regional:UpdateIPSet
+            Resource: !Sub 'arn:aws:waf-regional:${AWS::Region}:${AWS::AccountId}:ipset/${ALBBlacklistIPSet}'
           -
             Effect: Allow
             Action:
             - waf:GetChangeToken
-            Resource: !Sub 'arn:aws:waf::${AWS::AccountId}:changetoken/*'
+            Resource: "*"
           -
             Effect: Allow
             Action:
-            - waf:GetChangeToken
-            Resource: !Sub 'arn:aws:waf-regional::${AWS::AccountId}:changetoken/*'
+            - waf-regional:GetChangeToken
+            Resource: "*"
           -
             Effect: "Allow"
             Action:
