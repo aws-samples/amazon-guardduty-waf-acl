@@ -36,11 +36,13 @@ ACLMETATABLE = os.environ['ACLMETATABLE']
 # Auxiliary Functions
 #======================================================================================================================
 def waf_update_ip_set(waf_type, ip_set_id, source_ip):
-    if (waf_type == 'alb'):
-    	session = boto3.session.Session(region_name=os.environ['REGION'])
+
+    if waf_type == 'alb':
+        session = boto3.session.Session(region_name=os.environ['REGION'])
         waf = session.client('waf-regional')
-    else
-    	waf = boto3.client('waf')
+    elif waf_type == 'cloudfront':
+        waf = boto3.client('waf')
+
     for attempt in range(API_CALL_NUM_RETRIES):
         try:
             response = waf.update_ip_set(IPSetId=ip_set_id,
