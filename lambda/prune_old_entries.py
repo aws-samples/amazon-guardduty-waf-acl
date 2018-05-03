@@ -36,10 +36,11 @@ ACLMETATABLE = os.environ['ACLMETATABLE']
 # Auxiliary Functions
 #======================================================================================================================
 def waf_update_ip_set(waf_type, ip_set_id, source_ip):
-    if (waf_type == 'alb'):
+
+    if waf_type == 'alb':
         session = boto3.session.Session(region_name=os.environ['REGION'])
         waf = session.client('waf-regional')
-    else
+    elif waf_type == 'cloudfront':
         waf = boto3.client('waf')
 
     for attempt in range(API_CALL_NUM_RETRIES):
@@ -71,7 +72,7 @@ def delete_netacl_rule(netacl_id, rule_no):
 
     ec2 = boto3.resource('ec2')
     network_acl = ec2.NetworkAcl(netacl_id)
-    
+
     try:
         response = network_acl.delete_entry(
             Egress=False,
@@ -86,7 +87,7 @@ def delete_netacl_rule(netacl_id, rule_no):
             return False
     except Exception as e:
         print(e)
-    
+
 
 
 def delete_ddb_rule(netacl_id, created_at):
@@ -124,12 +125,12 @@ def lambda_handler(event, context):
 
         expire_time = int(time.time()) - (int(os.environ['RETENTION'])*60)
         print ("expire_time = %s" % expire_time)
-        
+
         #scan the ddb table to find expired records
         ddb = boto3.resource('dynamodb')
         table = ddb.Table(ACLMETATABLE)
         response = table.scan(FilterExpression=Attr('CreatedAt').lt(expire_time))
-        
+
         # process each expired record
         for item in response['Items']:
             print ("deleting item: %s" %item)
@@ -139,10 +140,10 @@ def lambda_handler(event, context):
                 delete_ddb_rule(item['NetACLId'], item['CreatedAt'])
                 waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], HostIp)
                 waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], HostIp)
-            
+
             except Exception as e:
                 logger.error('could not delete item')
-                
+
         print ("Pruning Completed")
 
     except Exception as e:
