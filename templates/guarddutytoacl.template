@@ -89,12 +89,17 @@ Resources:
             Action:
             - waf:GetIPSet
             - waf:UpdateIPSet
-            Resource: !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${ALBBlacklistIPSet}'
+            Resource: !Sub 'arn:aws:wafregional::${AWS::AccountId}:ipset/${ALBBlacklistIPSet}'
           -
             Effect: Allow
             Action:
             - waf:GetChangeToken
             Resource: !Sub 'arn:aws:waf::${AWS::AccountId}:changetoken/*'
+          -
+            Effect: Allow
+            Action:
+            - waf:GetChangeToken
+            Resource: !Sub 'arn:aws:wafregional::${AWS::AccountId}:changetoken/*'
           -
             Effect: "Allow"
             Action:
@@ -294,12 +299,17 @@ Resources:
             Action:
             - waf:GetIPSet
             - waf:UpdateIPSet
-            Resource: !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${ALBBlacklistIPSet}'
+            Resource: !Sub 'arn:aws:wafregional::${AWS::AccountId}:ipset/${ALBBlacklistIPSet}'
           -
             Effect: Allow
             Action:
             - waf:GetChangeToken
             Resource: !Sub 'arn:aws:waf::${AWS::AccountId}:changetoken/*'
+          -
+            Effect: Allow
+            Action:
+            - waf:GetChangeToken
+            Resource: !Sub 'arn:aws:wafregional::${AWS::AccountId}:changetoken/*'
           -
             Effect: "Allow"
             Action:
