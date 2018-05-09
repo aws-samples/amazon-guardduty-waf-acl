@@ -286,46 +286,24 @@ def delete_ddb_rule(netacl_id, created_at):
         return False
 
 def admin_notify(iphost, findingtype, naclid):
-    RECIPIENT = "ADMINEMAIL"
 
-    # The subject line for the email.
-    SUBJECT = "GuardDuty to ACL EVent - Block" + iphost
-
-    # The email body for recipients with non-HTML email clients.
-    BODY_TEXT = ("GuardDuty to ACL Event Info:\r\n"
+    MESSAGE = ("GuardDuty to ACL Event Info:\r\n"
                  "An entry was added to block IP " + iphost + ", due to suspicious activity: " + findingtype + "."
                  "The following ACL resource were targeted for update: " + CLOUDFRONT_IP_SET_ID + ", " + ALB_IP_SET_ID + ", " + naclid + "."
                 )
 
-    # The character encoding for the email.
-    CHARSET = "UTF-8"
+    sns = boto3.client(service_name="sns")
 
-    # Create a new SES resource and specify a region.
-    client = boto3.client('ses',region_name=AWS_REGION)
-
-    # Try to send the email.
+    # Try to send the notification.
     try:
-        #Provide the contents of the email.
-        response = client.send_email(
-            Destination={
-                'ToAddresses': [
-                    RECIPIENT,
-                ],
-            },
-            Message={
-                'Body': {
-                    'Text': {
-                        'Charset': CHARSET,
-                        'Data': BODY_TEXT,
-                    },
-                },
-                'Subject': {
-                    'Charset': CHARSET,
-                    'Data': SUBJECT,
-                },
-            },
-            Source=SENDER,
+
+        topicArn = 'yourtopicarn'
+
+        sns.publish(
+            TopicArn = topicArn,
+            Message = MESSAGE
         )
+
     # Display an error if something goes wrong.
     except ClientError as e:
         logger.error(e.response['Error']['Message'])
