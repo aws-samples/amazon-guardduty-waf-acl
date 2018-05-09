@@ -13,6 +13,11 @@ Parameters:
     MinValue: 5
     MaxValue: 10080
     ConstraintDescription: Minimum of 5 minutes and maximum of 10080 (one week).
+  AdminEmail:
+    Description: Email address to recieve notifications. Must be a valid email address.
+    Type: String
+    AllowedPattern: ^(?:[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$
+
   ArtifactsBucket:
     Description: S3 bucket with artifact files (Lambda functions, templates, html files, etc.). Leave default for N. Virginia.
     Type: String
@@ -122,6 +127,11 @@ Resources:
             - dynamodb:Scan
             - dynamodb:DeleteItem
             Resource: !Sub '${GuardDutytoNACLDDBTable.Arn}'
+          -
+            Effect: Allow
+            Action:
+            - sns:Publish
+            Resource: !Sub '${GuardDutytoACLSNSTopic.Arn}'
       Roles:
         -
           Ref: "GuardDutytoNACLRole"
@@ -175,76 +185,76 @@ Resources:
         ReadCapacityUnits: "5"
         WriteCapacityUnits: "5"
 
-  CloudFrontBlacklistIPSet: 
+  CloudFrontBlacklistIPSet:
     Type: AWS::WAF::IPSet
-    Properties: 
+    Properties:
       Name: "CloudFront IPSet for blacklisted IP adresses"
-      IPSetDescriptors: 
-        - 
+      IPSetDescriptors:
+        -
           Type: "IPV4"
           Value: "127.0.0.1/32"
 
-  CloudFrontBlacklistIPSetRule: 
+  CloudFrontBlacklistIPSetRule:
     Type: AWS::WAF::Rule
-    Properties: 
+    Properties:
       Name: "CloudFrontBlacklistIPSetRule"
       MetricName: "IPSetRule"
-      Predicates: 
-        - 
-          DataId: 
+      Predicates:
+        -
+          DataId:
             Ref: "CloudFrontBlacklistIPSet"
           Negated: false
           Type: "IPMatch"
 
-  CloudFrontBlacklistWebACL: 
+  CloudFrontBlacklistWebACL:
     Type: AWS::WAF::WebACL
-    Properties: 
+    Properties:
       Name: "CloudFront WebACL to block blacklisted IP addresses"
-      DefaultAction: 
+      DefaultAction:
         Type: "ALLOW"
       MetricName: "CloudFrontBlacklistWebACL"
-      Rules: 
-        - 
-          Action: 
+      Rules:
+        -
+          Action:
             Type: "BLOCK"
           Priority: 1
-          RuleId: 
+          RuleId:
             Ref: "CloudFrontBlacklistIPSetRule"
 
-  ALBBlacklistIPSet: 
+  ALBBlacklistIPSet:
     Type: AWS::WAFRegional::IPSet
-    Properties: 
+    Properties:
       Name: "ALB IPSet for blacklisted IP adresses"
-      IPSetDescriptors: 
-        - 
+      IPSetDescriptors:
+        -
           Type: "IPV4"
           Value: "127.0.0.1/32"
 
-  ALBBlacklistIPSetRule: 
+  ALBBlacklistIPSetRule:
     Type: AWS::WAFRegional::Rule
-    Properties: 
+    Properties:
       Name: "ALBBlacklistIPSetRule"
       MetricName: "IPSetRule"
-      Predicates: 
-        - 
-          DataId: 
+      Predicates:
+        -
+          DataId:
             Ref: "ALBBlacklistIPSet"
           Negated: false
           Type: "IPMatch"
 
-  ALBBlacklistWebACL: 
+  ALBBlacklistWebACL:
     Type: AWS::WAFRegional::WebACL
-    Properties: 
+    Properties:
       Name: "ALB WebACL to block blacklisted IP addresses"
-      DefaultAction: 
+      DefaultAction:
         Type: "ALLOW"
       MetricName: "ALBBlacklistWebACL"
-      Rules: 
-        - 
-          Action: 
+      Rules:
+        -
+          Action:
             Type: "BLOCK"
           Priority: 1
-          RuleId: 
+          RuleId:
             Ref: "ALBBlacklistIPSetRule"
 
   PruneOldEntriesLambda:
@@ -336,23 +346,30 @@ Resources:
         -
           Ref: "PruneOldEntriesRole"
 
-  PruneOldEntriesSchedule: 
+  PruneOldEntriesSchedule:
     Type: "AWS::Events::Rule"
-    Properties: 
+    Properties:
       Description: "ScheduledPruningRule"
       ScheduleExpression: "rate(5 minutes)"
       State: "ENABLED"
-      Targets: 
-        - 
+      Targets:
+        -
           Arn: !GetAtt PruneOldEntriesLambda.Arn
           Id: "TargetFunctionV1"
 
-  PruneOldEntriesPermissionToInvoke: 
+  PruneOldEntriesPermissionToInvoke:
     DependsOn:
       - GuardDutytoNACLLambda
     Type: "AWS::Lambda::Permission"
-    Properties: 
+    Properties:
       FunctionName: !Ref PruneOldEntriesLambda
       Action: "lambda:InvokeFunction"
       Principal: "events.amazonaws.com"
       SourceArn: !GetAtt PruneOldEntriesSchedule.Arn
+
+    GuardDutytoACLSNSTopic:
+      Type: "AWS::SNS::Topic"
+      Properties:
+        Subscription:
+          -
+            Endpoint: !Ref MyEmail
