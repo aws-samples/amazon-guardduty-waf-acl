@@ -292,7 +292,7 @@ def admin_notify(iphost, findingtype, naclid):
 
     MESSAGE = ("GuardDuty to ACL Event Info:\r\n"
                  "Suspicious activity detected from host " + iphost + " due to " + findingtype + "."
-                 "The following ACL resource were targeted for update as needed, CloudFront IP Set: " + CLOUDFRONT_IP_SET_ID + ", Regional IP Set: " + ALB_IP_SET_ID + ", VPC NACL: " + naclid + "."
+                 "The following ACL resources were targeted for update as needed, CloudFront IP Set: " + CLOUDFRONT_IP_SET_ID + ", Regional IP Set: " + ALB_IP_SET_ID + ", VPC NACL: " + naclid + "."
                 )
 
     sns = boto3.client(service_name="sns")
