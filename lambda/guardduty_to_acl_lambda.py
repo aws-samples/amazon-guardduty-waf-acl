@@ -291,8 +291,8 @@ def delete_ddb_rule(netacl_id, created_at):
 def admin_notify(iphost, findingtype, naclid):
 
     MESSAGE = ("GuardDuty to ACL Event Info:\r\n"
-                 "An entry was added to block IP " + iphost + ", due to suspicious activity: " + findingtype + "."
-                 "The following ACL resource were targeted for update: " + CLOUDFRONT_IP_SET_ID + ", " + ALB_IP_SET_ID + ", " + naclid + "."
+                 "Suspicious activity detected from " + iphost + ", due to: " + findingtype + "."
+                 "The following ACL resource were targeted for update unless entry already exists, CloudFront IP Set: " + CLOUDFRONT_IP_SET_ID + ", Regional IP Set: " + ALB_IP_SET_ID + ", VPC NACL: " + naclid + "."
                 )
 
     sns = boto3.client(service_name="sns")
@@ -336,12 +336,17 @@ def lambda_handler(event, context):
             instanceID = event["detail"]["resource"]["instanceDetails"]["instanceId"]
             NetworkAclId = get_netacl_id(subnet_id=SubnetId)
 
-        waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], HostIp)
-        waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], HostIp)
-        admin_notify(HostIp, event["detail"]["type"], SubnetId)
-
         if NetworkAclId:
+            # Update global and regional IP Sets
+            waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], HostIp)
+            waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], HostIp)
+
+            # Update VPC NACL
             response = update_nacl(netacl_id=NetworkAclId,host_ip=HostIp)
+
+            #Send Notification
+            admin_notify(HostIp, event["detail"]["type"], SubnetId)
+
         else:
             logger.info("Unable to determine NetworkAclId for instanceID: %s, HostIp: %s, SubnetId: %s. Confirm resources exist." % (instanceID, HostIp, SubnetId))
             pass
