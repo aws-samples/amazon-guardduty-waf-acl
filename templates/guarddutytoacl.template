@@ -57,6 +57,7 @@ Resources:
           ACLMETATABLE: !Ref GuardDutytoNACLDDBTable
           ALB_IP_SET_ID:  !Ref ALBBlacklistIPSet
           CLOUDFRONT_IP_SET_ID:  !Ref CloudFrontBlacklistIPSet
+          ADMINEMAIL: !Ref AdminEmail
       Code:
         S3Bucket: !Sub ${ArtifactsBucket}-${AWS::Region}
         S3Key: !Sub ${ArtifactsPrefix}guardduty_to_acl_lambda.zip
