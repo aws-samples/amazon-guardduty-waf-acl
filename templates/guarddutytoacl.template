@@ -9,7 +9,7 @@ Parameters:
   Retention:
     Description: How long to retain IP addresses in the blacklist (in minutes).
     Type: Number
-    Default: 60
+    Default: 720
     MinValue: 5
     MaxValue: 10080
     ConstraintDescription: Minimum of 5 minutes and maximum of 10080 (one week).
@@ -43,27 +43,27 @@ Metadata:
       - ArtifactsPrefix
 
 Resources:
-  GuardDutytoNACLLambda:
+  GuardDutytoACLLambda:
     Type: AWS::Lambda::Function
     Properties:
       Description: "GuardDuty to ACL Function"
       Handler : "guardduty_to_acl_lambda.lambda_handler"
       MemorySize: 1024
       Timeout: 300
-      Role: !GetAtt GuardDutytoNACLRole.Arn
+      Role: !GetAtt GuardDutytoACLRole.Arn
       Runtime : "python3.6"
       Environment:
         Variables:
-          ACLMETATABLE: !Ref GuardDutytoNACLDDBTable
+          ACLMETATABLE: !Ref GuardDutytoACLDDBTable
           ALB_IP_SET_ID:  !Ref ALBBlacklistIPSet
           CLOUDFRONT_IP_SET_ID:  !Ref CloudFrontBlacklistIPSet
           ADMINEMAIL: !Ref AdminEmail
-          SNSTOPIC: !Sub '${GuardDutytoACLSNSTopic.Arn}'
+          SNSTOPIC: !Ref GuardDutytoACLSNSTopic
       Code:
         S3Bucket: !Sub ${ArtifactsBucket}-${AWS::Region}
         S3Key: !Sub ${ArtifactsPrefix}guardduty_to_acl_lambda.zip
 
-  GuardDutytoNACLRole:
+  GuardDutytoACLRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -78,7 +78,7 @@ Resources:
               "sts:AssumeRole"
       Path: "/"
 
-  GuardDutytoNACLPolicy:
+  GuardDutytoACLPolicy:
     Type: AWS::IAM::Policy
     Properties:
       PolicyName: "guardduty-to-nacl-wafipset"
@@ -128,18 +128,18 @@ Resources:
             - dynamodb:Query
             - dynamodb:Scan
             - dynamodb:DeleteItem
-            Resource: !Sub '${GuardDutytoNACLDDBTable.Arn}'
+            Resource: !GetAtt GuardDutytoACLDDBTable.Arn
           -
             Effect: Allow
             Action:
             - sns:Publish
-            Resource: !Sub '${GuardDutytoACLSNSTopic.Arn}'
+            Resource: !Ref GuardDutytoACLSNSTopic
       Roles:
         -
-          Ref: "GuardDutytoNACLRole"
+          Ref: "GuardDutytoACLRole"
 
   # GuardDuty CloudWatch Event - For GuardDuty Finding:
-  GuardDutytoNACLEvent:
+  GuardDutytoACLEvent:
     Type: "AWS::Events::Rule"
     Properties:
       Description: "GuardDuty Malicious Host Events"
@@ -154,19 +154,19 @@ Resources:
       State: "ENABLED"
       Targets:
         -
-          Arn: !GetAtt GuardDutytoNACLLambda.Arn
+          Arn: !GetAtt GuardDutytoACLLambda.Arn
           Id: "GuardDutyEvent-Lambda-Trigger"
 
-  GuardDutytoNACLInvokePermissions:
+  GuardDutytoACLInvokePermissions:
     DependsOn:
-      - GuardDutytoNACLLambda
+      - GuardDutytoACLLambda
     Type: "AWS::Lambda::Permission"
     Properties:
-      FunctionName: !Ref "GuardDutytoNACLLambda"
+      FunctionName: !Ref "GuardDutytoACLLambda"
       Action: "lambda:InvokeFunction"
       Principal: "events.amazonaws.com"
 
-  GuardDutytoNACLDDBTable:
+  GuardDutytoACLDDBTable:
     Type: "AWS::DynamoDB::Table"
     Properties:
       AttributeDefinitions:
@@ -270,7 +270,7 @@ Resources:
       Runtime : "python3.6"
       Environment:
         Variables:
-          ACLMETATABLE: !Ref GuardDutytoNACLDDBTable
+          ACLMETATABLE: !Ref GuardDutytoACLDDBTable
           ALB_IP_SET_ID:  !Ref ALBBlacklistIPSet
           CLOUDFRONT_IP_SET_ID:  !Ref CloudFrontBlacklistIPSet
           RETENTION: !Ref Retention
@@ -343,7 +343,7 @@ Resources:
             - dynamodb:Query
             - dynamodb:Scan
             - dynamodb:DeleteItem
-            Resource: !Sub '${GuardDutytoNACLDDBTable.Arn}'
+            Resource: !GetAtt GuardDutytoACLDDBTable.Arn
       Roles:
         -
           Ref: "PruneOldEntriesRole"
@@ -361,7 +361,7 @@ Resources:
 
   PruneOldEntriesPermissionToInvoke:
     DependsOn:
-      - GuardDutytoNACLLambda
+      - GuardDutytoACLLambda
     Type: "AWS::Lambda::Permission"
     Properties:
       FunctionName: !Ref PruneOldEntriesLambda
@@ -369,9 +369,10 @@ Resources:
       Principal: "events.amazonaws.com"
       SourceArn: !GetAtt PruneOldEntriesSchedule.Arn
 
-    GuardDutytoACLSNSTopic:
-      Type: "AWS::SNS::Topic"
-      Properties:
-        Subscription:
-          -
-            Endpoint: !Ref MyEmail
+  GuardDutytoACLSNSTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      Subscription:
+        -
+          Endpoint: !Ref AdminEmail
+          Protocol: "email"
