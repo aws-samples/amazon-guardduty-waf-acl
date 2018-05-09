@@ -57,7 +57,6 @@ Resources:
           ACLMETATABLE: !Ref GuardDutytoACLDDBTable
           ALB_IP_SET_ID:  !Ref ALBBlacklistIPSet
           CLOUDFRONT_IP_SET_ID:  !Ref CloudFrontBlacklistIPSet
-          ADMINEMAIL: !Ref AdminEmail
           SNSTOPIC: !Ref GuardDutytoACLSNSTopic
       Code:
         S3Bucket: !Sub ${ArtifactsBucket}-${AWS::Region}

@@ -32,6 +32,9 @@ logger.setLevel(logging.INFO)
 #======================================================================================================================
 API_CALL_NUM_RETRIES = 1
 ACLMETATABLE = os.environ['ACLMETATABLE']
+SNSTOPIC = os.environ['SNSTOPIC']
+CLOUDFRONT_IP_SET_ID = os.environ['CLOUDFRONT_IP_SET_ID']
+ALB_IP_SET_ID = os.environ['ALB_IP_SET_ID']
 
 #======================================================================================================================
 # Auxiliary Functions
@@ -297,19 +300,17 @@ def admin_notify(iphost, findingtype, naclid):
     # Try to send the notification.
     try:
 
-        topicArn = 'yourtopicarn'
-
         sns.publish(
-            TopicArn = topicArn,
+            TopicArn = SNSTOPIC,
             Message = MESSAGE
         )
+        logger.info("Notification sent to SNS Topic: %s" % (SNSTOPIC))
 
     # Display an error if something goes wrong.
     except ClientError as e:
-        logger.error(e.response['Error']['Message'])
-    else:
-        logger.info("Email sent! Message ID:"),
-        logger.info(response['ResponseMetadata']['RequestId'])
+        logger.error('Error sending notification.')
+        raise
+
 
 
 #======================================================================================================================
