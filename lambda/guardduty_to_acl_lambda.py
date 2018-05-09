@@ -345,7 +345,7 @@ def lambda_handler(event, context):
             response = update_nacl(netacl_id=NetworkAclId,host_ip=HostIp)
 
             #Send Notification
-            admin_notify(HostIp, event["detail"]["type"], SubnetId)
+            admin_notify(HostIp, event["detail"]["type"], NetworkAclId)
 
         else:
             logger.info("Unable to determine NetworkAclId for instanceID: %s, HostIp: %s, SubnetId: %s. Confirm resources exist." % (instanceID, HostIp, SubnetId))
