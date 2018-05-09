@@ -291,8 +291,8 @@ def delete_ddb_rule(netacl_id, created_at):
 def admin_notify(iphost, findingtype, naclid):
 
     MESSAGE = ("GuardDuty to ACL Event Info:\r\n"
-                 "Suspicious activity detected from " + iphost + ", due to: " + findingtype + "."
-                 "The following ACL resource were targeted for update unless entry already exists, CloudFront IP Set: " + CLOUDFRONT_IP_SET_ID + ", Regional IP Set: " + ALB_IP_SET_ID + ", VPC NACL: " + naclid + "."
+                 "Suspicious activity detected from host " + iphost + " due to " + findingtype + "."
+                 "The following ACL resource were targeted for update as needed, CloudFront IP Set: " + CLOUDFRONT_IP_SET_ID + ", Regional IP Set: " + ALB_IP_SET_ID + ", VPC NACL: " + naclid + "."
                 )
 
     sns = boto3.client(service_name="sns")
