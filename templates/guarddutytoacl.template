@@ -7,7 +7,7 @@ Description: Demonstrates how to use GuardDuty Findings to automate WAF ACL and 
 
 Parameters:
   Retention:
-    Description: How long to retain IP addresses in the blacklist (in minutes).
+    Description: How long to retain IP addresses in the blacklist (in minutes). Default is 12 hours.
     Type: Number
     Default: 720
     MinValue: 5
@@ -17,7 +17,6 @@ Parameters:
     Description: Email address to recieve notifications. Must be a valid email address.
     Type: String
     AllowedPattern: ^(?:[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$
-
   ArtifactsBucket:
     Description: S3 bucket with artifact files (Lambda functions, templates, html files, etc.). Leave default for N. Virginia.
     Type: String
@@ -37,11 +36,15 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
     - Label:
+        default:
+      Parameters: GD2ACL Configuration
+      - Retention
+      - AdminEmail
+    - Label:
         default: Artifact
       Parameters:
       - ArtifactsBucket
       - ArtifactsPrefix
-
 Resources:
   GuardDutytoACLLambda:
     Type: AWS::Lambda::Function
