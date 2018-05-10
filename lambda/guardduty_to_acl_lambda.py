@@ -302,8 +302,8 @@ def admin_notify(iphost, findingtype, naclid):
 
         sns.publish(
             TopicArn = SNSTOPIC,
-            Message = MESSAGE
-            Subject='AWS GD2ACL Alert',
+            Message = MESSAGE,
+            Subject='AWS GD2ACL Alert'
         )
         logger.info("Notification sent to SNS Topic: %s" % (SNSTOPIC))
 
