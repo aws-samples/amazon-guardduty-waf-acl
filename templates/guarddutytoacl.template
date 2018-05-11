@@ -36,12 +36,12 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
     - Label:
-        default:
-      Parameters: GD2ACL Configuration
+        default: GD2ACL Configuration
+      Parameters:
       - Retention
       - AdminEmail
     - Label:
-        default: Artifact
+        default: Artifact Configuration
       Parameters:
       - ArtifactsBucket
       - ArtifactsPrefix

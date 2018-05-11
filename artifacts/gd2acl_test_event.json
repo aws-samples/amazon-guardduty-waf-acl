@@ -1,0 +1,141 @@
+{
+  "detail": {
+    "type": "UnauthorizedAccess:EC2/SSHBruteForce",
+    "resource": {
+      "resourceType": "Instance",
+      "instanceDetails": {
+        "instanceId": "i-99999999",
+        "instanceType": "m3.xlarge",
+        "launchTime": "2016-08-02T02:05:06Z",
+        "platform": null,
+        "productCodes": [
+          {
+            "productCodeId": "GeneratedFindingProductCodeId",
+            "productCodeType": "GeneratedFindingProductCodeType"
+          }
+        ],
+        "iamInstanceProfile": {
+          "arn": "GeneratedFindingInstanceProfileArn",
+          "id": "GeneratedFindingInstanceProfileId"
+        },
+        "networkInterfaces": [
+          {
+            "ipv6Addresses": [],
+            "networkInterfaceId": "eni-bfcffe88",
+            "privateDnsName": "GeneratedFindingPrivateDnsName",
+            "privateIpAddress": "10.0.0.1",
+            "privateIpAddresses": [
+              {
+                "privateDnsName": "GeneratedFindingPrivateName",
+                "privateIpAddress": "10.0.0.1"
+              }
+            ],
+            "subnetId": "**Replace with valid SubnetID**",
+            "vpcId": "GeneratedFindingVPCId",
+            "securityGroups": [
+              {
+                "groupName": "GeneratedFindingSecurityGroupName",
+                "groupId": "GeneratedFindingSecurityId"
+              }
+            ],
+            "publicDnsName": "GeneratedFindingPublicDNSName",
+            "publicIp": "198.51.100.0"
+          }
+        ],
+        "tags": [
+          {
+            "key": "GeneratedFindingInstaceTag1",
+            "value": "GeneratedFindingInstaceValue1"
+          },
+          {
+            "key": "GeneratedFindingInstaceTag2",
+            "value": "GeneratedFindingInstaceTagValue2"
+          },
+          {
+            "key": "GeneratedFindingInstaceTag3",
+            "value": "GeneratedFindingInstaceTagValue3"
+          },
+          {
+            "key": "GeneratedFindingInstaceTag4",
+            "value": "GeneratedFindingInstaceTagValue4"
+          },
+          {
+            "key": "GeneratedFindingInstaceTag5",
+            "value": "GeneratedFindingInstaceTagValue5"
+          },
+          {
+            "key": "GeneratedFindingInstaceTag6",
+            "value": "GeneratedFindingInstaceTagValue6"
+          },
+          {
+            "key": "GeneratedFindingInstaceTag7",
+            "value": "GeneratedFindingInstaceTagValue7"
+          },
+          {
+            "key": "GeneratedFindingInstaceTag8",
+            "value": "GeneratedFindingInstaceTagValue8"
+          },
+          {
+            "key": "GeneratedFindingInstaceTag9",
+            "value": "GeneratedFindingInstaceTagValue9"
+          }
+        ],
+        "instanceState": "running",
+        "availabilityZone": "GeneratedFindingInstaceAvailabilityZone",
+        "imageId": "ami-99999999",
+        "imageDescription": "GeneratedFindingInstaceImageDescription"
+      }
+    },
+    "service": {
+      "serviceName": "guardduty",
+      "action": {
+        "actionType": "NETWORK_CONNECTION",
+        "networkConnectionAction": {
+          "connectionDirection": "INBOUND",
+          "remoteIpDetails": {
+            "ipAddressV4": "198.51.100.0",
+            "organization": {
+              "asn": "-1",
+              "asnOrg": "GeneratedFindingASNOrg",
+              "isp": "GeneratedFindingISP",
+              "org": "GeneratedFindingORG"
+            },
+            "country": {
+              "countryName": "GeneratedFindingCountryName"
+            },
+            "city": {
+              "cityName": "GeneratedFindingCityName"
+            },
+            "geoLocation": {
+              "lat": 0,
+              "lon": 0
+            }
+          },
+          "remotePortDetails": {
+            "port": 32794,
+            "portName": "Unknown"
+          },
+          "localPortDetails": {
+            "port": 22,
+            "portName": "SSH"
+          },
+          "protocol": "TCP",
+          "blocked": false
+        }
+      },
+      "resourceRole": "TARGET",
+      "additionalInfo": {
+        "sample": true
+      },
+      "eventFirstSeen": "2018-05-11T14:56:39.976Z",
+      "eventLastSeen": "2018-05-11T14:56:39.976Z",
+      "archived": false,
+      "count": 1
+    },
+    "severity": 2,
+    "createdAt": "2018-05-11T14:56:39.976Z",
+    "updatedAt": "2018-05-11T14:56:39.976Z",
+    "title": "198.51.100.0 is performing SSH brute force attacks against i-99999999. ",
+    "description": "198.51.100.0 is performing SSH brute force attacks against i-99999999. Brute force attacks are used to gain unauthorized access to your instance by guessing the SSH password."
+  }
+}
