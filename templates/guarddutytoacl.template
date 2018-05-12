@@ -1,9 +1,7 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Demonstrates how to use GuardDuty Findings to automate WAF ACL and VPC NACL entries.
-  The template installs a Lambda function that updates an AWS WAF IP Set and VPC NACL. This
-  relies on you creating an *incoming web hook* in your slack account and simply passing
-  the URL as a parameter to this template
+  The template installs a Lambda function that updates an AWS WAF IP Set and VPC NACL.
 
 Parameters:
   Retention:
@@ -378,3 +376,27 @@ Resources:
         -
           Endpoint: !Ref AdminEmail
           Protocol: "email"
+
+Outputs:
+  GuardDutytoACLLambda:
+    Description: GD2ACL Primary Lambda Function.
+    Value: !Sub https://console.aws.amazon.com/lambda/home?region=${AWS::Region}#/functions/${GuardDutytoACLLambda}
+  PruneOldEntriesLambda:
+    Description: GD2ACL Entry Pruning Lambda Function.
+    Value: !Sub https://console.aws.amazon.com/lambda/home?region=${AWS::Region}#/functions/${PruneOldEntriesLambda}
+  ACLMetaTable:
+    Description: GD2ACL DynamoDB State Table
+    Value: !Ref GuardDutytoACLDDBTable
+  ALBIPSetId:
+    Description: ALB WAF IP Set Id
+    Value: !Ref ALBBlacklistIPSet
+  CloudFrontIPSetId:
+    Description: CloudFront WAF IP Set Id
+    Value: !Ref CloudFrontBlacklistIPSet
+  Retention:
+    Description: ACL Entry Time to Live
+    Value: !Ref Retention
+  Region:
+    Description: Region of the stack.
+    Value:
+      Ref: AWS::Region
