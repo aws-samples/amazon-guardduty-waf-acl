@@ -190,7 +190,7 @@ Resources:
   CloudFrontBlacklistIPSet:
     Type: AWS::WAF::IPSet
     Properties:
-      Name: "CloudFront IPSet for blacklisted IP adresses"
+      Name: "GD2ACL CloudFront IPSet for blacklisted IP adresses"
       IPSetDescriptors:
         -
           Type: "IPV4"
@@ -199,7 +199,7 @@ Resources:
   CloudFrontBlacklistIPSetRule:
     Type: AWS::WAF::Rule
     Properties:
-      Name: "CloudFrontBlacklistIPSetRule"
+      Name: "GD2ACLCloudFrontBlacklistIPSetRule"
       MetricName: "IPSetRule"
       Predicates:
         -
@@ -214,7 +214,7 @@ Resources:
       Name: "CloudFront WebACL to block blacklisted IP addresses"
       DefaultAction:
         Type: "ALLOW"
-      MetricName: "CloudFrontBlacklistWebACL"
+      MetricName: "GD2ACLCloudFrontBlacklistWebACL"
       Rules:
         -
           Action:
@@ -226,7 +226,7 @@ Resources:
   ALBBlacklistIPSet:
     Type: AWS::WAFRegional::IPSet
     Properties:
-      Name: "ALB IPSet for blacklisted IP adresses"
+      Name: "GD2ACL ALB IPSet for blacklisted IP adresses"
       IPSetDescriptors:
         -
           Type: "IPV4"
@@ -235,7 +235,7 @@ Resources:
   ALBBlacklistIPSetRule:
     Type: AWS::WAFRegional::Rule
     Properties:
-      Name: "ALBBlacklistIPSetRule"
+      Name: "GD2ACLALBBlacklistIPSetRule"
       MetricName: "IPSetRule"
       Predicates:
         -
@@ -250,7 +250,7 @@ Resources:
       Name: "ALB WebACL to block blacklisted IP addresses"
       DefaultAction:
         Type: "ALLOW"
-      MetricName: "ALBBlacklistWebACL"
+      MetricName: "GD2ACLALBBlacklistWebACL"
       Rules:
         -
           Action:
