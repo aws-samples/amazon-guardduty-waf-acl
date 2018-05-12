@@ -394,7 +394,7 @@ Outputs:
     Description: CloudFront WAF IP Set Id
     Value: !Ref CloudFrontBlacklistIPSet
   Retention:
-    Description: ACL Entry Time to Live
+    Description: ACL Entry Time to Live in Minutes
     Value: !Ref Retention
   Region:
     Description: Region of the stack.
