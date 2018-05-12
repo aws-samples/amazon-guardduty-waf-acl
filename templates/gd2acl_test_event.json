@@ -30,7 +30,7 @@
                 "privateIpAddress": "10.0.0.1"
               }
             ],
-            "subnetId": "**Replace with valid SubnetID**",
+            "subnetId": "Replace with valid SubnetID",
             "vpcId": "GeneratedFindingVPCId",
             "securityGroups": [
               {
