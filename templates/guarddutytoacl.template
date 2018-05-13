@@ -215,7 +215,7 @@ Resources:
   CloudFrontBlacklistWebACL:
     Type: AWS::WAF::WebACL
     Properties:
-      Name: "CloudFront WebACL to block blacklisted IP addresses"
+      Name: "GD2ACL CloudFront WebACL to block blacklisted IP addresses"
       DefaultAction:
         Type: "ALLOW"
       MetricName: "GD2ACLCloudFrontBlacklistWebACL"
@@ -251,7 +251,7 @@ Resources:
   ALBBlacklistWebACL:
     Type: AWS::WAFRegional::WebACL
     Properties:
-      Name: "ALB WebACL to block blacklisted IP addresses"
+      Name: "GD2ACL ALB WebACL to block blacklisted IP addresses"
       DefaultAction:
         Type: "ALLOW"
       MetricName: "GD2ACLALBBlacklistWebACL"
