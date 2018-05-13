@@ -151,6 +151,10 @@ Resources:
           - "UnauthorizedAccess:EC2/SSHBruteForce"
           - "UnauthorizedAccess:EC2/RDPBruteForce"
           - "Recon:EC2/PortProbeUnprotectedPort"
+          - "Trojan:EC2/BlackholeTraffic"
+          - "Backdoor:EC2/XORDDOS"
+          - "Recon:IAMUser/TorIPCaller"
+          - "Trojan:EC2/DropPoint"
       State: "ENABLED"
       Targets:
         -
