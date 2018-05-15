@@ -60,14 +60,14 @@ def waf_update_ip_set(waf_type, ip_set_id, source_ip):
                 }]
             )
         except Exception as e:
-            print(e)
+            logger.error(e)
             delay = math.pow(2, attempt)
-            print("[waf_update_ip_set] Retrying in %d seconds..." % (delay))
+            logger.info("[waf_update_ip_set] Retrying in %d seconds..." % (delay))
             time.sleep(delay)
         else:
             break
     else:
-        print("[waf_update_ip_set] Failed ALL attempts to call API")
+        logger.info("[waf_update_ip_set] Failed ALL attempts to call API")
 
 
 def get_netacl_id(subnet_id):
@@ -140,7 +140,7 @@ def update_nacl(netacl_id, host_ip):
 
     # Is HostIp already in table?
     if hostipexists['Items']:
-        logger.info("log -- host IP %s already in table... exiting." % (host_ip))
+        logger.info("log -- host IP %s already in table... exiting NACL update." % (host_ip))
 
     else:
 

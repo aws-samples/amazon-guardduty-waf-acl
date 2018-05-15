@@ -38,13 +38,13 @@ ACLMETATABLE = os.environ['ACLMETATABLE']
 def waf_update_ip_set(waf_type, ip_set_id, source_ip):
 
     if waf_type == 'alb':
-        print ('creating waf regional object')
+        logger.info('creating waf regional object')
         session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
         waf = session.client('waf-regional')
     elif waf_type == 'cloudfront':
-        print ('creating waf global object')
+        logger.info('creating waf global object')
         waf = boto3.client('waf')
-    print ('type of WAF: %s' % waf_type )
+    logger.info('type of WAF: %s' % waf_type )
     for attempt in range(API_CALL_NUM_RETRIES):
         try:
             response = waf.update_ip_set(IPSetId=ip_set_id,
@@ -57,17 +57,17 @@ def waf_update_ip_set(waf_type, ip_set_id, source_ip):
                     }
                 }]
             )
-            print (response)
-            print ('successfully deleted ip %s' %source_ip)
+            logger.info(response)
+            logger.info('successfully deleted ip %s' %source_ip)
         except Exception as e:
-            print(e)
+            logger.error(e)
             delay = math.pow(2, attempt)
-            print("[waf_update_ip_set] Retrying in %d seconds..." % (delay))
+            logger.info("[waf_update_ip_set] Retrying in %d seconds..." % (delay))
             time.sleep(delay)
         else:
             break
     else:
-        print("[waf_update_ip_set] Failed ALL attempts to call API")
+        logger.error("[waf_update_ip_set] Failed ALL attempts to call API")
 
 
 
@@ -83,14 +83,14 @@ def delete_netacl_rule(netacl_id, rule_no):
             RuleNumber=int(rule_no)
         )
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            print ('delete_netacl_rule successful')
+            logger.info('delete_netacl_rule successful')
             return True
         else:
-            print ('delete_netacl_rule FAILED')
-            print (response)
+            logger.info('delete_netacl_rule FAILED')
+            logger.info(response)
             return False
     except Exception as e:
-        print(e)
+        logger.error(e)
 
 
 
@@ -108,11 +108,11 @@ def delete_ddb_rule(netacl_id, created_at):
         )
 
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-        print ('delete_ddb_rule successful')
+        logger.info('delete_ddb_rule successful')
         return True
     else:
-        print ('delete_ddb_rule FAILED')
-        print (response['ResponseMetadata'])
+        logger.error('delete_ddb_rule FAILED')
+        logger.info(response['ResponseMetadata'])
         return False
 
 
@@ -128,7 +128,7 @@ def lambda_handler(event, context):
     try:
 
         expire_time = int(time.time()) - (int(os.environ['RETENTION'])*60)
-        print ("expire_time = %s" % expire_time)
+        logger.info("expire_time = %s" % expire_time)
 
         #scan the ddb table to find expired records
         ddb = boto3.resource('dynamodb')
@@ -137,23 +137,23 @@ def lambda_handler(event, context):
 
         # process each expired record
         for item in response['Items']:
-            print ("deleting item: %s" %item)
-            print ("HostIp %s" %item['HostIp'])
+            logger.info("deleting item: %s" %item)
+            logger.info("HostIp %s" %item['HostIp'])
             try:
-                print ('deleting netacl rule')
+                logger.info('deleting netacl rule')
                 delete_netacl_rule(item['NetACLId'], item['RuleNo'])
-                print ('deleting ALB WAF ip entry')
+                logger.info('deleting ALB WAF ip entry')
                 waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], item['HostIp'])
-                print ('deleting CloudFront WAF ip entry')
+                logger.info('deleting CloudFront WAF ip entry')
                 waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], item['HostIp'])
-                print ('deleting dynamodb item')
+                logger.info('deleting dynamodb item')
                 delete_ddb_rule(item['NetACLId'], item['CreatedAt'])
-                
+
             except Exception as e:
-                print (e)
+                logger.error(e)
                 logger.error('could not delete item')
 
-        print ("Pruning Completed")
+        logger.info("Pruning Completed")
 
     except Exception as e:
         logger.error('something went wrong')
