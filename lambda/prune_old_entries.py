@@ -38,11 +38,13 @@ ACLMETATABLE = os.environ['ACLMETATABLE']
 def waf_update_ip_set(waf_type, ip_set_id, source_ip):
 
     if waf_type == 'alb':
+        print ('creating waf regional object')
         session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
         waf = session.client('waf-regional')
     elif waf_type == 'cloudfront':
+        print ('creating waf global object')
         waf = boto3.client('waf')
-
+    print ('type of WAF: %s' % waf_type )
     for attempt in range(API_CALL_NUM_RETRIES):
         try:
             response = waf.update_ip_set(IPSetId=ip_set_id,
@@ -55,6 +57,8 @@ def waf_update_ip_set(waf_type, ip_set_id, source_ip):
                     }
                 }]
             )
+            print (response)
+            print ('successfully deleted ip %s' %source_ip)
         except Exception as e:
             print(e)
             delay = math.pow(2, attempt)
@@ -136,12 +140,17 @@ def lambda_handler(event, context):
             print ("deleting item: %s" %item)
             print ("HostIp %s" %item['HostIp'])
             try:
+                print ('deleting netacl rule')
                 delete_netacl_rule(item['NetACLId'], item['RuleNo'])
+                print ('deleting ALB WAF ip entry')
+                waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], item['HostIp'])
+                print ('deleting CloudFront WAF ip entry')
+                waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], item['HostIp'])
+                print ('deleting dynamodb item')
                 delete_ddb_rule(item['NetACLId'], item['CreatedAt'])
-                waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], HostIp)
-                waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], HostIp)
-
+                
             except Exception as e:
+                print (e)
                 logger.error('could not delete item')
 
         print ("Pruning Completed")
