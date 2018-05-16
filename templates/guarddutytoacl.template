@@ -15,6 +15,10 @@ Parameters:
     Description: Email address to receive notifications. Must be a valid email address.
     Type: String
     AllowedPattern: ^(?:[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$
+  CloudFrontWebACL:
+    Type: String
+    Default: ''
+    Description: Create CloudFront Web ACL?
   ArtifactsBucket:
     Description: S3 bucket with artifact files (Lambda functions, templates, html files, etc.). Leave default for N. Virginia.
     Type: String
@@ -38,11 +42,17 @@ Metadata:
       Parameters:
       - Retention
       - AdminEmail
+      - CloudFrontWebACL
     - Label:
         default: Artifact Configuration
       Parameters:
       - ArtifactsBucket
       - ArtifactsPrefix
+
+Conditions:
+# Create CloudFront Web ACL?
+  CreateCloudFrontWebACL: !Not [ !Equals [!Ref CloudFrontWebACL, ''] ]
+
 Resources:
   GuardDutytoACLLambda:
     Type: AWS::Lambda::Function
@@ -62,7 +72,6 @@ Resources:
       Code:
         S3Bucket: !Sub ${ArtifactsBucket}-${AWS::Region}
         S3Key: !Sub ${ArtifactsPrefix}guardduty_to_acl_lambda.zip
-
   GuardDutytoACLRole:
     Type: AWS::IAM::Role
     Properties:
@@ -192,6 +201,7 @@ Resources:
         WriteCapacityUnits: "5"
 
   CloudFrontBlacklistIPSet:
+    Condition: CreateCloudFrontWebACL
     Type: AWS::WAF::IPSet
     Properties:
       Name: "GD2ACL CloudFront IPSet for blacklisted IP adresses"
@@ -201,6 +211,7 @@ Resources:
           Value: "127.0.0.1/32"
 
   CloudFrontBlacklistIPSetRule:
+    Condition: CreateCloudFrontWebACL
     Type: AWS::WAF::Rule
     Properties:
       Name: "GD2ACLCloudFrontBlacklistIPSetRule"
@@ -213,6 +224,7 @@ Resources:
           Type: "IPMatch"
 
   CloudFrontBlacklistWebACL:
+    Condition: CreateCloudFrontWebACL
     Type: AWS::WAF::WebACL
     Properties:
       Name: "GD2ACL CloudFront WebACL to block blacklisted IP addresses"
