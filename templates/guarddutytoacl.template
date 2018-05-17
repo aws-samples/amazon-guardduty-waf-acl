@@ -17,7 +17,7 @@ Parameters:
     AllowedPattern: ^(?:[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$
   CloudFrontIPSetId:
     Type: String
-    Description: ID for existing CloudFront IP Set. Enter if there is an existing CloudFront IP Set to use. Leave blank for creation of new CloufFront Web ACL and IP Set.
+    Description: ID for existing CloudFront IP Set. Enter if there is an existing CloudFront IP Set to use. Leave set to False for creation of new CloufFront Web ACL and IP Set.
   ArtifactsBucket:
     Description: S3 bucket with artifact files (Lambda functions, templates, html files, etc.). Leave default for N. Virginia.
     Type: String
@@ -50,10 +50,8 @@ Metadata:
 
 Conditions:
 # Create CloudFront Web ACL?
-  CreateCloudFrontWebACL: !Equals [!Ref CloudFrontIPSetId, 'AWS::NoValue' ]
-#  ExistingCloudFrontWebACL: !Not [ !Equals [!Ref CloudFrontIPSetId, '' ] ]
+  CreateCloudFrontWebACL: !Equals [!Ref CloudFrontIPSetId, 'False' ]
 #  CreateCloudFrontWebACL: !Equals [!Ref CloudFrontIPSetId, 'AWS::NoValue' ]
-#  ExistingCloudFrontWebACL: !Not [ !Equals [!Ref CloudFrontIPSetId, '' ] ]
 
 Resources:
 
