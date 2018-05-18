@@ -17,7 +17,12 @@ Parameters:
     AllowedPattern: ^(?:[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$
   CloudFrontIPSetId:
     Type: String
+    Default: 'False'
     Description: ID for existing CloudFront IP Set. Enter if there is an existing CloudFront IP Set to use. Leave set to False for creation of new CloufFront Web ACL and IP Set.
+  ALBIPSetId:
+    Type: String
+    Default: 'False'
+    Description: ID for existing ALB IP Set. Enter if there is an existing ALB IP Set to use. This must be in region. Leave set to False for creation of new ALB Web ACL and IP Set.
   ArtifactsBucket:
     Description: S3 bucket with artifact files (Lambda functions, templates, html files, etc.). Leave default for N. Virginia.
     Type: String
@@ -41,7 +46,8 @@ Metadata:
       Parameters:
       - Retention
       - AdminEmail
-      - CloudFrontWebACL
+      - CloudFrontIPSetId
+      - ALBIPSetId
     - Label:
         default: Artifact Configuration
       Parameters:
@@ -49,14 +55,13 @@ Metadata:
       - ArtifactsPrefix
 
 Conditions:
-# Create CloudFront Web ACL?
+# Create CloudFront or ALB Web ACL?
   CreateCloudFrontWebACL: !Equals [!Ref CloudFrontIPSetId, 'False' ]
-#  CreateCloudFrontWebACL: !Equals [!Ref CloudFrontIPSetId, 'AWS::NoValue' ]
+  CreateALBWebACL: !Equals [!Ref ALBIPSetId, 'False' ]
 
 Resources:
 
   GuardDutytoACLLambda:
-    Condition: CreateCloudFrontWebACL
     Type: AWS::Lambda::Function
     Properties:
       Description: "GuardDuty to ACL Function"
@@ -68,7 +73,7 @@ Resources:
       Environment:
         Variables:
           ACLMETATABLE: !Ref GuardDutytoACLDDBTable
-          ALB_IP_SET_ID: !Ref ALBBlacklistIPSet
+          ALB_IP_SET_ID: !If [ CreateALBWebACL, !Ref ALBBlacklistIPSet, !Ref ALBIPSetId ]
           CLOUDFRONT_IP_SET_ID: !If [ CreateCloudFrontWebACL, !Ref CloudFrontBlacklistIPSet, !Ref CloudFrontIPSetId ]
           SNSTOPIC: !Ref GuardDutytoACLSNSTopic
       Code:
@@ -111,7 +116,7 @@ Resources:
             Action:
             - waf-regional:GetIPSet
             - waf-regional:UpdateIPSet
-            Resource: !Sub 'arn:aws:waf-regional:${AWS::Region}:${AWS::AccountId}:ipset/${ALBBlacklistIPSet}'
+            Resource: !If [ CreateCloudFrontWebACL, !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${ALBBlacklistIPSet}', !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${ALBIPSetId}' ]
           -
             Effect: Allow
             Action:
@@ -244,6 +249,7 @@ Resources:
             Ref: "CloudFrontBlacklistIPSetRule"
 
   ALBBlacklistIPSet:
+    Condition: CreateCloudFrontWebACL
     Type: AWS::WAFRegional::IPSet
     Properties:
       Name: "GD2ACL ALB IPSet for blacklisted IP adresses"
@@ -253,6 +259,7 @@ Resources:
           Value: "127.0.0.1/32"
 
   ALBBlacklistIPSetRule:
+    Condition: CreateCloudFrontWebACL
     Type: AWS::WAFRegional::Rule
     Properties:
       Name: "GD2ACLALBBlacklistIPSetRule"
@@ -265,6 +272,7 @@ Resources:
           Type: "IPMatch"
 
   ALBBlacklistWebACL:
+    Condition: CreateCloudFrontWebACL
     Type: AWS::WAFRegional::WebACL
     Properties:
       Name: "GD2ACL ALB WebACL to block blacklisted IP addresses"
@@ -280,7 +288,6 @@ Resources:
             Ref: "ALBBlacklistIPSetRule"
 
   PruneOldEntriesLambda:
-    Condition: CreateCloudFrontWebACL
     Type: AWS::Lambda::Function
     Properties:
       Description: "Prune old entries in WAF ACL and NACLs"
@@ -292,7 +299,7 @@ Resources:
       Environment:
         Variables:
           ACLMETATABLE: !Ref GuardDutytoACLDDBTable
-          ALB_IP_SET_ID: !Ref ALBBlacklistIPSet
+          ALB_IP_SET_ID: !If [ CreateALBWebACL, !Ref ALBBlacklistIPSet, !Ref ALBIPSetId ]
           CLOUDFRONT_IP_SET_ID: !If [ CreateCloudFrontWebACL, !Ref CloudFrontBlacklistIPSet, !Ref CloudFrontIPSetId ]
           RETENTION: !Ref Retention
       Code:
@@ -335,7 +342,7 @@ Resources:
             Action:
             - waf-regional:GetIPSet
             - waf-regional:UpdateIPSet
-            Resource: !Sub 'arn:aws:waf-regional:${AWS::Region}:${AWS::AccountId}:ipset/${ALBBlacklistIPSet}'
+            Resource: !If [ CreateCloudFrontWebACL, !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${ALBBlacklistIPSet}', !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${ALBIPSetId}' ]
           -
             Effect: Allow
             Action:
@@ -413,11 +420,11 @@ Outputs:
     Value: !Ref GuardDutytoACLDDBTable
   ALBIPSetId:
     Description: ALB WAF IP Set Id
-    Value: !Ref ALBBlacklistIPSet
+    Value: !If [ CreateALBWebACL, !Ref ALBBlacklistIPSet, !Ref ALBIPSetId ]
   CloudFrontIPSetId:
     Condition: CreateCloudFrontWebACL
     Description: CloudFront WAF IP Set Id
-    Value: !If [ CreateCloudFrontWebACL, !Ref CloudFrontBlacklistIPSet, !Ref CloudFrontBlacklistIPSet ]
+    Value: !If [ CreateCloudFrontWebACL, !Ref CloudFrontBlacklistIPSet, !Ref CloudFrontIPSetId ]
   Retention:
     Description: ACL Entry Time to Live in Minutes
     Value: !Ref Retention
