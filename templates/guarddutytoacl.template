@@ -116,7 +116,7 @@ Resources:
             Action:
             - waf-regional:GetIPSet
             - waf-regional:UpdateIPSet
-            Resource: !If [ CreateCloudFrontWebACL, !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${ALBBlacklistIPSet}', !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${ALBIPSetId}' ]
+            Resource: !If [ CreateALBWebACL, !Sub 'arn:aws:waf-regional:${AWS::Region}:${AWS::AccountId}:ipset/${ALBBlacklistIPSet}', !Sub 'arn:aws:waf-regional:${AWS::Region}:${AWS::AccountId}:ipset/${ALBIPSetId}' ]
           -
             Effect: Allow
             Action:
@@ -342,7 +342,7 @@ Resources:
             Action:
             - waf-regional:GetIPSet
             - waf-regional:UpdateIPSet
-            Resource: !If [ CreateCloudFrontWebACL, !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${ALBBlacklistIPSet}', !Sub 'arn:aws:waf::${AWS::AccountId}:ipset/${ALBIPSetId}' ]
+            Resource: !If [ CreateALBWebACL, !Sub 'arn:aws:waf-regional:${AWS::Region}:${AWS::AccountId}:ipset/${ALBBlacklistIPSet}', !Sub 'arn:aws:waf-regional:${AWS::Region}:${AWS::AccountId}:ipset/${ALBIPSetId}' ]
           -
             Effect: Allow
             Action:
@@ -422,7 +422,6 @@ Outputs:
     Description: ALB WAF IP Set Id
     Value: !If [ CreateALBWebACL, !Ref ALBBlacklistIPSet, !Ref ALBIPSetId ]
   CloudFrontIPSetId:
-    Condition: CreateCloudFrontWebACL
     Description: CloudFront WAF IP Set Id
     Value: !If [ CreateCloudFrontWebACL, !Ref CloudFrontBlacklistIPSet, !Ref CloudFrontIPSetId ]
   Retention:
