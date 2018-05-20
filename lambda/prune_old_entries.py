@@ -1,3 +1,4 @@
+    
 # Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # MIT No Attribution
@@ -139,13 +140,19 @@ def lambda_handler(event, context):
         for item in response['Items']:
             logger.info("deleting item: %s" %item)
             logger.info("HostIp %s" %item['HostIp'])
+            HostIp = item['HostIp']
             try:
                 logger.info('deleting netacl rule')
                 delete_netacl_rule(item['NetACLId'], item['RuleNo'])
-                logger.info('deleting ALB WAF ip entry')
-                waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], item['HostIp'])
-                logger.info('deleting CloudFront WAF ip entry')
-                waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], item['HostIp'])
+                
+                # check if IP is also recorded in a fresh finding, don't remove IP from blacklist in that case
+                response_nonexpired = table.scan( FilterExpression=Attr('CreatedAt').gt(expire_time) & Attr('HostIp').eq(HostIp) )
+                if len(response_nonexpired['Items']) == 0:
+                    logger.info('deleting ALB WAF ip entry')
+                    waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], HostIp)
+                    logger.info('deleting CloudFront WAF ip entry')
+                    waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], HostIp)
+                
                 logger.info('deleting dynamodb item')
                 delete_ddb_rule(item['NetACLId'], item['CreatedAt'])
 

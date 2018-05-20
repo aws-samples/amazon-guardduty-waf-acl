@@ -59,6 +59,7 @@ def waf_update_ip_set(waf_type, ip_set_id, source_ip):
                     }
                 }]
             )
+            logger.info("[waf_update_ip_set] added IP %s to IPset %s, WAF type %s successfully..." % (source_ip, ip_set_id, waf_type))
         except Exception as e:
             logger.error(e)
             delay = math.pow(2, attempt)
@@ -121,7 +122,8 @@ def get_nacl_meta(netacl_id):
 
 
 def update_nacl(netacl_id, host_ip):
-
+    logger.info("entering update_nacl, netacl_id=%s, host_ip=%s" % (netacl_id, host_ip))
+    
     ddb = boto3.resource('dynamodb')
     table = ddb.Table(ACLMETATABLE)
     timestamp = int(time.time())
@@ -139,7 +141,7 @@ def update_nacl(netacl_id, host_ip):
     )
 
     # Is HostIp already in table?
-    if hostipexists['Items']:
+    if len(hostipexists['Items']) > 0:
         logger.info("log -- host IP %s already in table... exiting NACL update." % (host_ip))
 
     else:
@@ -347,6 +349,8 @@ def lambda_handler(event, context):
 
             #Send Notification
             admin_notify(HostIp, event["detail"]["type"], NetworkAclId)
+            
+            logger.info("processing GuardDuty finding completed successfully")
 
         else:
             logger.info("Unable to determine NetworkAclId for instanceID: %s, HostIp: %s, SubnetId: %s. Confirm resources exist." % (instanceID, HostIp, SubnetId))
