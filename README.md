@@ -1,4 +1,5 @@
-## GD2ACL
+## AWS GD2ACL
+
 
 ### How to use Amazon GuardDuty and AWS Web Application Firewall to Automatically Block Suspicious Hosts
 
@@ -17,6 +18,6 @@ Here’s how the solution works, as shown in the diagram:
 6.	A notification email is sent via Amazon Simple Notification Service (SNS).
 
 
-## License Summary
+### License Summary
 
 This sample code is made available under a modified MIT license. See the LICENSE file.
