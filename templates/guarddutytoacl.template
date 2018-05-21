@@ -5,7 +5,7 @@ Description: Demonstrates how to use GuardDuty Findings to automate WAF ACL and 
 
 Parameters:
   Retention:
-    Description: How long to retain IP addresses in the blacklist (in minutes). Default is 12 hours.
+    Description: How long to retain IP addresses in the blacklist (in minutes). Default is 12 hours, minimum is 5 minutes and maximum one week (10080 minutes)
     Type: Number
     Default: 720
     MinValue: 5
@@ -26,7 +26,7 @@ Parameters:
   ArtifactsBucket:
     Description: S3 bucket with artifact files (Lambda functions, templates, html files, etc.). Leave default for N. Virginia.
     Type: String
-    Default: cgull-artifacts
+    Default: atomic-artifacts
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription: ArtifactsBucket S3 bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-).
       It cannot start or end with a hyphen (-).
@@ -44,8 +44,8 @@ Metadata:
     - Label:
         default: GD2ACL Configuration
       Parameters:
-      - Retention
       - AdminEmail
+      - Retention
       - CloudFrontIPSetId
       - ALBIPSetId
     - Label:
@@ -53,6 +53,20 @@ Metadata:
       Parameters:
       - ArtifactsBucket
       - ArtifactsPrefix
+
+    ParameterLabels:
+      AdminEmail:
+        default: Notification email (REQUIRED)
+      Retention:
+        default: Retention time in minutes
+      CloudFrontIPSetId:
+        default: IP Set for global CloudFront WAF
+      ALBIPSetId:
+        default: IP Set for regional ALB WAF
+      ArtifactsBucket:
+        default: S3 bucket for artifacts
+      ArtifactsPrefix:
+        default: S3 path to artifacts
 
 Conditions:
 # Create CloudFront or ALB Web ACL?
