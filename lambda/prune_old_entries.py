@@ -127,14 +127,14 @@ def lambda_handler(event, context):
     #logger.info("log -- Event: %s " % json.dumps(event))
 
     try:
-
+        # timestamp is calculated in seconds
         expire_time = int(time.time()) - (int(os.environ['RETENTION'])*60)
         logger.info("expire_time = %s" % expire_time)
 
         #scan the ddb table to find expired records
         ddb = boto3.resource('dynamodb')
         table = ddb.Table(ACLMETATABLE)
-        response = table.scan(FilterExpression=Attr('CreatedAt').lt(expire_time))
+        response = table.scan(FilterExpression=Attr('CreatedAt').lt(expire_time) & Attr('Region').eq(os.environ['AWS_REGION']))
 
         # process each expired record
         for item in response['Items']:
@@ -148,6 +148,7 @@ def lambda_handler(event, context):
                 # check if IP is also recorded in a fresh finding, don't remove IP from blacklist in that case
                 response_nonexpired = table.scan( FilterExpression=Attr('CreatedAt').gt(expire_time) & Attr('HostIp').eq(HostIp) )
                 if len(response_nonexpired['Items']) == 0:
+                    # no fresher entry found for that IP
                     logger.info('deleting ALB WAF ip entry')
                     waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], HostIp)
                     logger.info('deleting CloudFront WAF ip entry')

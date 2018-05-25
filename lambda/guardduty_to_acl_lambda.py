@@ -121,7 +121,7 @@ def get_nacl_meta(netacl_id):
     return naclentries
 
 
-def update_nacl(netacl_id, host_ip):
+def update_nacl(netacl_id, host_ip, region):
     logger.info("entering update_nacl, netacl_id=%s, host_ip=%s" % (netacl_id, host_ip))
     
     ddb = boto3.resource('dynamodb')
@@ -167,7 +167,7 @@ def update_nacl(netacl_id, host_ip):
 
                 # Create NACL rule and DDB state entry
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
-                create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
+                create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
 
                 logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
                 logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
@@ -183,7 +183,7 @@ def update_nacl(netacl_id, host_ip):
 
                 # Create NACL rule and DDB state entry
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
-                create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
+                create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
 
                 logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
                 logger.info("log -- rule count for NACL %s is %s." % (netacl_id, rulecount))
@@ -196,7 +196,7 @@ def update_nacl(netacl_id, host_ip):
 
             # Create NACL rule and DDB state entry
             create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
-            create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
+            create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
 
             logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
             logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
@@ -251,7 +251,7 @@ def delete_netacl_rule(netacl_id, rule_no):
     else:
         return False
 
-def create_ddb_rule(netacl_id, host_ip, rule_no):
+def create_ddb_rule(netacl_id, host_ip, rule_no, region):
 
     ddb = boto3.resource('dynamodb')
     table = ddb.Table(ACLMETATABLE)
@@ -262,7 +262,8 @@ def create_ddb_rule(netacl_id, host_ip, rule_no):
             'NetACLId': netacl_id,
             'CreatedAt': timestamp,
             'HostIp': str(host_ip),
-            'RuleNo': str(rule_no)
+            'RuleNo': str(rule_no),
+            'Region': str(region)
             }
         )
 
@@ -290,11 +291,15 @@ def delete_ddb_rule(netacl_id, created_at):
     else:
         return False
 
-def admin_notify(iphost, findingtype, naclid):
+def admin_notify(iphost, findingtype, naclid, region):
 
     MESSAGE = ("GuardDuty to ACL Event Info:\r\n"
                  "Suspicious activity detected from host " + iphost + " due to " + findingtype + "."
-                 " The following ACL resources were targeted for update as needed; CloudFront IP Set: " + CLOUDFRONT_IP_SET_ID + ", Regional IP Set: " + ALB_IP_SET_ID + ", VPC NACL: " + naclid + "."
+                 "  The following ACL resources were targeted for update as needed; "
+                 "CloudFront IP Set: " + CLOUDFRONT_IP_SET_ID + ", "
+                 "Regional IP Set: " + ALB_IP_SET_ID + ", "
+                 "VPC NACL: " + naclid + ", "
+                 "Region: " + region + ". "
                 )
 
     sns = boto3.client(service_name="sns")
@@ -328,12 +333,14 @@ def lambda_handler(event, context):
     try:
 
         if event["detail"]["type"] == 'Recon:EC2/PortProbeUnprotectedPort':
+            Region = event["region"]
             SubnetId = event["detail"]["resource"]["instanceDetails"]["networkInterfaces"][0]["subnetId"]
             HostIp = event["detail"]["service"]["action"]["portProbeAction"]["portProbeDetails"][0]["remoteIpDetails"]["ipAddressV4"]
             instanceID = event["detail"]["resource"]["instanceDetails"]["instanceId"]
             NetworkAclId = get_netacl_id(subnet_id=SubnetId)
 
         else:
+            Region = event["region"]
             SubnetId = event["detail"]["resource"]["instanceDetails"]["networkInterfaces"][0]["subnetId"]
             HostIp = event["detail"]["service"]["action"]["networkConnectionAction"]["remoteIpDetails"]["ipAddressV4"]
             instanceID = event["detail"]["resource"]["instanceDetails"]["instanceId"]
@@ -345,10 +352,10 @@ def lambda_handler(event, context):
             waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], HostIp)
 
             # Update VPC NACL
-            response = update_nacl(netacl_id=NetworkAclId,host_ip=HostIp)
+            response = update_nacl(netacl_id=NetworkAclId,host_ip=HostIp, region=Region)
 
             #Send Notification
-            admin_notify(HostIp, event["detail"]["type"], NetworkAclId)
+            admin_notify(HostIp, event["detail"]["type"], NetworkAclId, Region)
             
             logger.info("processing GuardDuty finding completed successfully")
 
