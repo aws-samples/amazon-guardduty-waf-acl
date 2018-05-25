@@ -10,6 +10,7 @@ This solution uses Amazon GuardDuty to automatically update AWS Web Application 
 ![architecture diagram](images/solutiondiagram.png)
 
 Here’s how the solution works, as shown in the diagram:
+
 1.	A GuardDuty Finding is raised with suspected malicious activity.
 2.	A CloudWatch Event is configured to filter for GuardDuty Finding type.
 3.	A Lambda function is invoked by the CloudWatch Event and parses the GuardDuty Finding.
