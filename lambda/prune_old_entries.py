@@ -1,4 +1,3 @@
-    
 # Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # MIT No Attribution
@@ -144,7 +143,7 @@ def lambda_handler(event, context):
             try:
                 logger.info('deleting netacl rule')
                 delete_netacl_rule(item['NetACLId'], item['RuleNo'])
-                
+
                 # check if IP is also recorded in a fresh finding, don't remove IP from blacklist in that case
                 response_nonexpired = table.scan( FilterExpression=Attr('CreatedAt').gt(expire_time) & Attr('HostIp').eq(HostIp) )
                 if len(response_nonexpired['Items']) == 0:
@@ -153,7 +152,7 @@ def lambda_handler(event, context):
                     waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], HostIp)
                     logger.info('deleting CloudFront WAF ip entry')
                     waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], HostIp)
-                
+
                 logger.info('deleting dynamodb item')
                 delete_ddb_rule(item['NetACLId'], item['CreatedAt'])
 

@@ -123,7 +123,7 @@ def get_nacl_meta(netacl_id):
 
 def update_nacl(netacl_id, host_ip, region):
     logger.info("entering update_nacl, netacl_id=%s, host_ip=%s" % (netacl_id, host_ip))
-    
+
     ddb = boto3.resource('dynamodb')
     table = ddb.Table(ACLMETATABLE)
     timestamp = int(time.time())
@@ -291,7 +291,7 @@ def delete_ddb_rule(netacl_id, created_at):
     else:
         return False
 
-def admin_notify(iphost, findingtype, naclid, region):
+def admin_notify(iphost, findingtype, naclid, region, instanceid):
 
     MESSAGE = ("GuardDuty to ACL Event Info:\r\n"
                  "Suspicious activity detected from host " + iphost + " due to " + findingtype + "."
@@ -299,6 +299,7 @@ def admin_notify(iphost, findingtype, naclid, region):
                  "CloudFront IP Set: " + CLOUDFRONT_IP_SET_ID + ", "
                  "Regional IP Set: " + ALB_IP_SET_ID + ", "
                  "VPC NACL: " + naclid + ", "
+                 "EC2 Instance: " + instanceid + ", "
                  "Region: " + region + ". "
                 )
 
@@ -355,8 +356,8 @@ def lambda_handler(event, context):
             response = update_nacl(netacl_id=NetworkAclId,host_ip=HostIp, region=Region)
 
             #Send Notification
-            admin_notify(HostIp, event["detail"]["type"], NetworkAclId, Region)
-            
+            admin_notify(HostIp, event["detail"]["type"], NetworkAclId, Region, instanceid = instanceID)
+
             logger.info("processing GuardDuty finding completed successfully")
 
         else:
