@@ -26,14 +26,14 @@ Parameters:
   ArtifactsBucket:
     Description: S3 bucket with artifact files (Lambda functions, templates, html files, etc.). Leave default for N. Virginia.
     Type: String
-    Default: atomic-artifacts
+    Default: awsiammedia
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription: ArtifactsBucket S3 bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-).
       It cannot start or end with a hyphen (-).
   ArtifactsPrefix:
     Description: Path in the S3 bucket containing artifact files. Leave default for N. Virginia.
     Type: String
-    Default: public/sample/GuardDutytoACL/
+    Default: public/sample/
     AllowedPattern: ^[0-9a-zA-Z-/]*$
     ConstraintDescription: ArtifactsPrefix key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-),
       and forward slash (/).
@@ -91,7 +91,7 @@ Resources:
           CLOUDFRONT_IP_SET_ID: !If [ CreateCloudFrontWebACL, !Ref CloudFrontBlacklistIPSet, !Ref CloudFrontIPSetId ]
           SNSTOPIC: !Ref GuardDutytoACLSNSTopic
       Code:
-        S3Bucket: !Sub ${ArtifactsBucket}-${AWS::Region}
+        S3Bucket: !Sub ${ArtifactsBucket}
         S3Key: !Sub ${ArtifactsPrefix}guardduty_to_acl_lambda.zip
 
   GuardDutytoACLRole:
@@ -317,7 +317,7 @@ Resources:
           CLOUDFRONT_IP_SET_ID: !If [ CreateCloudFrontWebACL, !Ref CloudFrontBlacklistIPSet, !Ref CloudFrontIPSetId ]
           RETENTION: !Ref Retention
       Code:
-        S3Bucket: !Sub ${ArtifactsBucket}-${AWS::Region}
+        S3Bucket: !Sub ${ArtifactsBucket}
         S3Key: !Sub ${ArtifactsPrefix}prune_old_entries.zip
 
   PruneOldEntriesRole:
