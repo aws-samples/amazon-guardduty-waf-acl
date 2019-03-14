@@ -82,6 +82,7 @@ Resources:
       Handler : "guardduty_to_acl_lambda.lambda_handler"
       MemorySize: 1024
       Timeout: 300
+      ReservedConcurrentExecutions: 1
       Role: !GetAtt GuardDutytoACLRole.Arn
       Runtime : "python3.6"
       Environment:
