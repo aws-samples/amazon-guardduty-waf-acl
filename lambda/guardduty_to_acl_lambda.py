@@ -235,12 +235,6 @@ def update_nacl(netacl_id, host_ip, region):
             logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
             logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
 
-        if rulecount >= 10:
-            delete_netacl_rule(netacl_id=netacl_id, rule_no=oldruleno)
-
-            logger.info("log -- delete rule %s, from NACL %s." % (oldruleno, netacl_id))
-            logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount)))
-
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             return True
         else:
