@@ -98,6 +98,24 @@ def get_netacl_id(subnet_id):
         return []
 
 
+def get_nacl_rules(netacl_id):
+    ec2 = boto3.client('ec2')
+    response = ec2.describe_network_acls(
+        NetworkAclIds=[
+            netacl_id,
+            ]
+    )
+
+    naclrules = []
+
+    for i in response['NetworkAcls'][0]['Entries']:
+        naclrules.append(i['RuleNumber'])
+        
+    naclrulesf = list(filter(lambda x: 71 <= x <= 80, naclrules))
+
+    return naclrulesf
+
+
 def get_nacl_meta(netacl_id):
     ddb = boto3.resource('dynamodb')
     table = ddb.Table(ACLMETATABLE)
@@ -158,17 +176,29 @@ def update_nacl(netacl_id, host_ip, region):
         if naclentries:
             oldruleno = int((oldestrule)['Items'][0]['RuleNo'])
             oldrulets = int((oldestrule)['Items'][0]['CreatedAt'])
-            rulecounter = max(naclentries, key=lambda x:x['RuleNo'])['RuleNo']
+#            rulecounter = max(naclentries, key=lambda x:x['RuleNo'])['RuleNo']
             rulecount = response['Count']
+            rulerange = list(range(71, 81))
+
+            ddbrulerange = []
+            naclrulerange = get_nacl_rules(netacl_id)
+
+            for i in naclentries:
+                ddbrulerange.append(int(i['RuleNo']))
 
             # Set the rule number
-            if int(rulecounter) < 80:
-                newruleno = int(rulecounter) + 1
+            if rulecount < 10:
+                # Get the lowest rule number available in the range
+                newruleno = min([x for x in rulerange if not x in naclrulerange])
 
                 # Create NACL rule and DDB state entry
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
                 create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
-
+                
+                logger.info("log -- all possible rule numbers, %s" % (rulerange))
+                logger.info("log -- current DDB entries, %s." % (ddbrulerange))
+                logger.info("log -- current NACL entries, %s." % (naclrulerange))
+                logger.info("log -- new rule number, %s." % (newruleno))
                 logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
                 logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
 
@@ -185,8 +215,12 @@ def update_nacl(netacl_id, host_ip, region):
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
                 create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
 
+                logger.info("log -- all possible rule numbers, %s" % (rulerange))
+                logger.info("log -- current DDB entries, %s." % (ddbrulerange))
+                logger.info("log -- current NACL entries, %s." % (naclrulerange))
+                logger.info("log -- new rule number, %s." % (newruleno))
                 logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
-                logger.info("log -- rule count for NACL %s is %s." % (netacl_id, rulecount))
+                logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount)))
 
         else:
             # No entries in DDB Table start from 71
@@ -201,11 +235,11 @@ def update_nacl(netacl_id, host_ip, region):
             logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
             logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
 
-        if rulecount > 10:
+        if rulecount >= 10:
             delete_netacl_rule(netacl_id=netacl_id, rule_no=oldruleno)
 
             logger.info("log -- delete rule %s, from NACL %s." % (oldruleno, netacl_id))
-            logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
+            logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount)))
 
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             return True
