@@ -135,32 +135,38 @@ def lambda_handler(event, context):
         table = ddb.Table(ACLMETATABLE)
         response = table.scan(FilterExpression=Attr('CreatedAt').lt(expire_time) & Attr('Region').eq(os.environ['AWS_REGION']))
 
-        # process each expired record
-        for item in response['Items']:
-            logger.info("deleting item: %s" %item)
-            logger.info("HostIp %s" %item['HostIp'])
-            HostIp = item['HostIp']
-            try:
-                logger.info('deleting netacl rule')
-                delete_netacl_rule(item['NetACLId'], item['RuleNo'])
+        if response['Items']:
+            logger.info("log -- attempting to prune entries, %s." % (response)['Items'])
 
-                # check if IP is also recorded in a fresh finding, don't remove IP from blacklist in that case
-                response_nonexpired = table.scan( FilterExpression=Attr('CreatedAt').gt(expire_time) & Attr('HostIp').eq(HostIp) )
-                if len(response_nonexpired['Items']) == 0:
-                    # no fresher entry found for that IP
-                    logger.info('deleting ALB WAF ip entry')
-                    waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], HostIp)
-                    logger.info('deleting CloudFront WAF ip entry')
-                    waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], HostIp)
+            # process each expired record
+            for item in response['Items']:
+                logger.info("deleting item: %s" %item)
+                logger.info("HostIp %s" %item['HostIp'])
+                HostIp = item['HostIp']
+                try:
+                    logger.info('deleting netacl rule')
+                    delete_netacl_rule(item['NetACLId'], item['RuleNo'])
 
-                logger.info('deleting dynamodb item')
-                delete_ddb_rule(item['NetACLId'], item['CreatedAt'])
+                    # check if IP is also recorded in a fresh finding, don't remove IP from blacklist in that case
+                    response_nonexpired = table.scan( FilterExpression=Attr('CreatedAt').gt(expire_time) & Attr('HostIp').eq(HostIp) )
+                    if len(response_nonexpired['Items']) == 0:
+                        # no fresher entry found for that IP
+                        logger.info('deleting ALB WAF ip entry')
+                        waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], HostIp)
+                        logger.info('deleting CloudFront WAF ip entry')
+                        waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], HostIp)
 
-            except Exception as e:
-                logger.error(e)
-                logger.error('could not delete item')
+                    logger.info('deleting dynamodb item')
+                    delete_ddb_rule(item['NetACLId'], item['CreatedAt'])
 
-        logger.info("Pruning Completed")
+                except Exception as e:
+                    logger.error(e)
+                    logger.error('could not delete item')
+
+            logger.info("Pruning Completed")
+                
+        else:
+            logger.info("log -- no etntries older than %s hours." % (int(os.environ['RETENTION'])/60))
 
     except Exception as e:
         logger.error('something went wrong')
