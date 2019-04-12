@@ -188,7 +188,7 @@ def update_nacl(netacl_id, host_ip, region):
             ddbrulerange.sort()
             naclrulerange.sort()
 
-            synccheck = ([x for x in naclrulerange if not x in ddbrulerange])
+            synccheck = set(naclrulerange).symmetric_difference(ddbrulerange)
 
             # Error and exit if NACL rule state not in sync
             if ddbrulerange != naclrulerange:
@@ -235,9 +235,16 @@ def update_nacl(netacl_id, host_ip, region):
 
         else:
             # No entries in DDB Table start from 71
+            naclrulerange = get_nacl_rules(netacl_id)
             newruleno = 71
             oldruleno = []
             rulecount = 0
+            naclrulerange.sort()
+
+            # Error and exit if NACL rules already present
+            if naclrulerange:
+                logger.error("log -- NACL has existing entries, %s." % (naclrulerange))
+                exit()
 
             # Create NACL rule and DDB state entry
             create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
