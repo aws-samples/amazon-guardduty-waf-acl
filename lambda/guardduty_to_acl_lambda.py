@@ -172,11 +172,10 @@ def update_nacl(netacl_id, host_ip, region):
         # Get all the entries for NACL
         naclentries = response['Items']
 
-        # Find oldest rule and current counter
+        # Find oldest rule and available rule numbers from 71-80
         if naclentries:
             oldruleno = int((oldestrule)['Items'][0]['RuleNo'])
             oldrulets = int((oldestrule)['Items'][0]['CreatedAt'])
-#            rulecounter = max(naclentries, key=lambda x:x['RuleNo'])['RuleNo']
             rulecount = response['Count']
             rulerange = list(range(71, 81))
 
@@ -185,6 +184,18 @@ def update_nacl(netacl_id, host_ip, region):
 
             for i in naclentries:
                 ddbrulerange.append(int(i['RuleNo']))
+
+            ddbrulerange.sort()
+            naclrulerange.sort()
+
+            synccheck = ([x for x in naclrulerange if not x in ddbrulerange])
+
+            # Error and exit if NACL rule state not in sync
+            if ddbrulerange != naclrulerange:
+                logger.info("log -- current DDB entries, %s." % (ddbrulerange))
+                logger.info("log -- current NACL entries, %s." % (naclrulerange))
+                logger.error('NACL rule state mismatch, %s exiting' % (sorted(synccheck)))
+                exit()
 
             # Set the rule number
             if rulecount < 10:
