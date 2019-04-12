@@ -27,9 +27,11 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+
 #======================================================================================================================
 # Variables
 #======================================================================================================================
+
 API_CALL_NUM_RETRIES = 1
 ACLMETATABLE = os.environ['ACLMETATABLE']
 SNSTOPIC = os.environ['SNSTOPIC']
@@ -39,6 +41,9 @@ ALB_IP_SET_ID = os.environ['ALB_IP_SET_ID']
 #======================================================================================================================
 # Auxiliary Functions
 #======================================================================================================================
+
+
+# Update WAF IP set
 def waf_update_ip_set(waf_type, ip_set_id, source_ip):
 
     if waf_type == 'alb':
@@ -71,6 +76,7 @@ def waf_update_ip_set(waf_type, ip_set_id, source_ip):
         logger.info("[waf_update_ip_set] Failed ALL attempts to call API")
 
 
+# Get the current NACL Id associated with subnet
 def get_netacl_id(subnet_id):
 
     try:
@@ -98,6 +104,7 @@ def get_netacl_id(subnet_id):
         return []
 
 
+# Get the current NACL rules in the range 71-80
 def get_nacl_rules(netacl_id):
     ec2 = boto3.client('ec2')
     response = ec2.describe_network_acls(
@@ -116,6 +123,7 @@ def get_nacl_rules(netacl_id):
     return naclrulesf
 
 
+# Get current DDB state data for NACL Id
 def get_nacl_meta(netacl_id):
     ddb = boto3.resource('dynamodb')
     table = ddb.Table(ACLMETATABLE)
@@ -139,6 +147,7 @@ def get_nacl_meta(netacl_id):
     return naclentries
 
 
+#Update NACL and DDB state table
 def update_nacl(netacl_id, host_ip, region):
     logger.info("entering update_nacl, netacl_id=%s, host_ip=%s" % (netacl_id, host_ip))
 
@@ -206,7 +215,7 @@ def update_nacl(netacl_id, host_ip, region):
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
                 create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
                 
-                logger.info("log -- all possible rule numbers, %s" % (rulerange))
+                logger.info("log -- all possible NACL rule numbers, %s" % (rulerange))
                 logger.info("log -- current DDB entries, %s." % (ddbrulerange))
                 logger.info("log -- current NACL entries, %s." % (naclrulerange))
                 logger.info("log -- new rule number, %s." % (newruleno))
@@ -226,7 +235,7 @@ def update_nacl(netacl_id, host_ip, region):
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
                 create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
 
-                logger.info("log -- all possible rule numbers, %s" % (rulerange))
+                logger.info("log -- all possible NACL rule numbers, %s" % (rulerange))
                 logger.info("log -- current DDB entries, %s." % (ddbrulerange))
                 logger.info("log -- current NACL entries, %s." % (naclrulerange))
                 logger.info("log -- new rule number, %s." % (newruleno))
@@ -259,6 +268,7 @@ def update_nacl(netacl_id, host_ip, region):
             return False
 
 
+# Create NACL rule
 def create_netacl_rule(netacl_id, host_ip, rule_no):
 
     ec2 = boto3.resource('ec2')
@@ -282,6 +292,7 @@ def create_netacl_rule(netacl_id, host_ip, rule_no):
         return False
 
 
+# Delete NACL rule
 def delete_netacl_rule(netacl_id, rule_no):
 
     ec2 = boto3.resource('ec2')
@@ -297,6 +308,8 @@ def delete_netacl_rule(netacl_id, rule_no):
     else:
         return False
 
+
+# Create DDB state entry for NACL rule
 def create_ddb_rule(netacl_id, host_ip, rule_no, region):
 
     ddb = boto3.resource('dynamodb')
@@ -319,6 +332,7 @@ def create_ddb_rule(netacl_id, host_ip, rule_no, region):
         return False
 
 
+# Delete DDB state entry for NACL rule
 def delete_ddb_rule(netacl_id, created_at):
 
     ddb = boto3.resource('dynamodb')
@@ -337,6 +351,8 @@ def delete_ddb_rule(netacl_id, created_at):
     else:
         return False
 
+
+# Send notification to SNS topic
 def admin_notify(iphost, findingtype, naclid, region, instanceid):
 
     MESSAGE = ("GuardDuty to ACL Event Info:\r\n"
@@ -367,12 +383,12 @@ def admin_notify(iphost, findingtype, naclid, region, instanceid):
         raise
 
 
-
 #======================================================================================================================
 # Lambda Entry Point
 #======================================================================================================================
 
 
+# Main Lambda handler
 def lambda_handler(event, context):
 
     logger.info("log -- Event: %s " % json.dumps(event))
