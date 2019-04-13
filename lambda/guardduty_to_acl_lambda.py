@@ -92,7 +92,6 @@ def get_netacl_id(subnet_id):
             ]
         )
 
-
         netacls = response['NetworkAcls'][0]['Associations']
 
         for i in netacls:
@@ -230,7 +229,7 @@ def update_nacl(netacl_id, host_ip, region):
 
                 logger.info("log -- delete current rule %s, from NACL %s." % (oldruleno, netacl_id))
 
-                # Create NACL rule and DDB state entry
+                # Create new NACL rule and DDB state entry
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
                 create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
 
@@ -386,7 +385,7 @@ def admin_notify(iphost, findingtype, naclid, region, instanceid):
 #======================================================================================================================
 
 
-# Main Lambda handler
+# Lambda handler
 def lambda_handler(event, context):
 
     logger.info("log -- Event: %s " % json.dumps(event))
