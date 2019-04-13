@@ -31,6 +31,7 @@ logger.setLevel(logging.INFO)
 #======================================================================================================================
 API_CALL_NUM_RETRIES = 1
 ACLMETATABLE = os.environ['ACLMETATABLE']
+RETENTION = os.environ['RETENTION']
 
 #======================================================================================================================
 # Auxiliary Functions
@@ -127,7 +128,7 @@ def lambda_handler(event, context):
 
     try:
         # timestamp is calculated in seconds
-        expire_time = int(time.time()) - (int(os.environ['RETENTION'])*60)
+        expire_time = int(time.time()) - (int(RETENTION)*60)
         logger.info("expire_time = %s" % expire_time)
 
         #scan the ddb table to find expired records
@@ -166,7 +167,7 @@ def lambda_handler(event, context):
             logger.info("Pruning Completed")
                 
         else:
-            logger.info("log -- no etntries older than %s hours." % (int(os.environ['RETENTION'])/60))
+            logger.info("log -- no etntries older than %s hours." % (int(RETENTION)/60))
 
     except Exception as e:
         logger.error('something went wrong')
