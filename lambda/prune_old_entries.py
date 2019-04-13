@@ -27,8 +27,9 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 #======================================================================================================================
-# Constants
+# Variables
 #======================================================================================================================
+
 API_CALL_NUM_RETRIES = 1
 ACLMETATABLE = os.environ['ACLMETATABLE']
 RETENTION = os.environ['RETENTION']
@@ -36,6 +37,8 @@ RETENTION = os.environ['RETENTION']
 #======================================================================================================================
 # Auxiliary Functions
 #======================================================================================================================
+
+
 def waf_update_ip_set(waf_type, ip_set_id, source_ip):
 
     if waf_type == 'alb':
@@ -71,8 +74,6 @@ def waf_update_ip_set(waf_type, ip_set_id, source_ip):
         logger.error("[waf_update_ip_set] Failed ALL attempts to call API")
 
 
-
-
 def delete_netacl_rule(netacl_id, rule_no):
 
     ec2 = boto3.resource('ec2')
@@ -92,7 +93,6 @@ def delete_netacl_rule(netacl_id, rule_no):
             return False
     except Exception as e:
         logger.error(e)
-
 
 
 def delete_ddb_rule(netacl_id, created_at):
