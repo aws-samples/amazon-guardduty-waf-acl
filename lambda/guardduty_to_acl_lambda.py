@@ -160,13 +160,6 @@ def update_nacl(netacl_id, host_ip, region):
         FilterExpression=Attr('HostIp').eq(host_ip)
     )
 
-    # Get oldest entry in DynamoDB table
-    oldestrule = table.query(
-        KeyConditionExpression=Key('NetACLId').eq(netacl_id),
-        ScanIndexForward=True, # true = ascending, false = descending
-        Limit=1,
-    )
-
     # Is HostIp already in table?
     if len(hostipexists['Items']) > 0:
         logger.info("log -- host IP %s already in table... exiting NACL update." % (host_ip))
@@ -183,8 +176,6 @@ def update_nacl(netacl_id, host_ip, region):
 
         # Find oldest rule and available rule numbers from 71-80
         if naclentries:
-            oldruleno = int((oldestrule)['Items'][0]['RuleNo'])
-            oldrulets = int((oldestrule)['Items'][0]['CreatedAt'])
             rulecount = response['Count']
             rulerange = list(range(71, 81))
 
@@ -221,14 +212,23 @@ def update_nacl(netacl_id, host_ip, region):
                 logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
                 logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
 
-            else:
+            if rulecount >= 10:
+                # Get oldest entry in DynamoDB table
+                oldestrule = table.query(
+                    KeyConditionExpression=Key('NetACLId').eq(netacl_id),
+                    ScanIndexForward=True, # true = ascending, false = descending
+                    Limit=1,
+                )
+
+                oldruleno = int((oldestrule)['Items'][0]['RuleNo'])
+                oldrulets = int((oldestrule)['Items'][0]['CreatedAt'])
                 newruleno = oldruleno
 
                 # Delete old NACL rule and DDB state entry
                 delete_netacl_rule(netacl_id=netacl_id, rule_no=oldruleno)
                 delete_ddb_rule(netacl_id=netacl_id, created_at=oldrulets)
 
-                logger.info("log -- delete rule %s, from NACL %s." % (oldruleno, netacl_id))
+                logger.info("log -- delete current rule %s, from NACL %s." % (oldruleno, netacl_id))
 
                 # Create NACL rule and DDB state entry
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
@@ -237,7 +237,6 @@ def update_nacl(netacl_id, host_ip, region):
                 logger.info("log -- all possible NACL rule numbers, %s" % (rulerange))
                 logger.info("log -- current DDB entries, %s." % (ddbrulerange))
                 logger.info("log -- current NACL entries, %s." % (naclrulerange))
-                logger.info("log -- new rule number, %s." % (newruleno))
                 logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
                 logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount)))
 
