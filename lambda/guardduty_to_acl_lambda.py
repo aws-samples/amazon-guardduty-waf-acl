@@ -44,7 +44,7 @@ ALB_IP_SET_ID = os.environ['ALB_IP_SET_ID']
 
 
 # Update WAF IP set
-def waf_update_ip_set(waf_type, ip_set_id, source_ip):
+def waf_update_ip_set(waf_type, update_type, ip_set_id, source_ip):
 
     if waf_type == 'alb':
         session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
@@ -57,14 +57,14 @@ def waf_update_ip_set(waf_type, ip_set_id, source_ip):
             response = waf.update_ip_set(IPSetId=ip_set_id,
                 ChangeToken=waf.get_change_token()['ChangeToken'],
                 Updates=[{
-                    'Action': 'INSERT',
+                    'Action': update_type,
                     'IPSetDescriptor': {
                         'Type': 'IPV4',
                         'Value': "%s/32"%source_ip
                     }
                 }]
             )
-            logger.info("[waf_update_ip_set] added IP %s to IPset %s, WAF type %s successfully..." % (source_ip, ip_set_id, waf_type))
+            logger.info("[waf_update_ip_set] %s IP %s - IPset %s, WAF type %s successfully..." % (update_type, source_ip, ip_set_id, waf_type))
         except Exception as e:
             logger.error(e)
             delay = math.pow(2, attempt)
@@ -161,7 +161,7 @@ def update_nacl(netacl_id, host_ip, region):
 
     # Is HostIp already in table?
     if len(hostipexists['Items']) > 0:
-        logger.info("log -- host IP %s already in table... exiting NACL update." % (host_ip))
+        logger.info("log -- host IP %s already in table... exiting GD2ACL update." % (host_ip))
 
     else:
 
@@ -200,9 +200,11 @@ def update_nacl(netacl_id, host_ip, region):
                 # Get the lowest rule number available in the range
                 newruleno = min([x for x in rulerange if not x in naclrulerange])
 
-                # Create NACL rule and DDB state entry
+                # Create new NACL rule, IP set entries and DDB state entry
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
                 create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
+                waf_update_ip_set('alb', 'INSERT', ALB_IP_SET_ID, host_ip)
+                waf_update_ip_set('cloudfront', 'INSERT', CLOUDFRONT_IP_SET_ID, host_ip)
                 
                 logger.info("log -- all possible NACL rule numbers, %s" % (rulerange))
                 logger.info("log -- current DDB entries, %s." % (ddbrulerange))
@@ -221,17 +223,22 @@ def update_nacl(netacl_id, host_ip, region):
 
                 oldruleno = int((oldestrule)['Items'][0]['RuleNo'])
                 oldrulets = int((oldestrule)['Items'][0]['CreatedAt'])
+                oldhostip = oldestrule['Items'][0]['HostIp']
                 newruleno = oldruleno
 
                 # Delete old NACL rule and DDB state entry
                 delete_netacl_rule(netacl_id=netacl_id, rule_no=oldruleno)
+                waf_update_ip_set('alb', 'DELETE', ALB_IP_SET_ID, oldhostip)
+                waf_update_ip_set('cloudfront', 'DELETE', CLOUDFRONT_IP_SET_ID, oldhostip)
                 delete_ddb_rule(netacl_id=netacl_id, created_at=oldrulets)
 
-                logger.info("log -- delete current rule %s, from NACL %s." % (oldruleno, netacl_id))
+                logger.info("log -- delete current rule %s for IP %s from NACL %s, CloudFront Ip set %s and ALB IP set %s." % (oldruleno, oldhostip, netacl_id, CLOUDFRONT_IP_SET_ID, ALB_IP_SET_ID))
 
-                # Create new NACL rule and DDB state entry
+                # Create new NACL rule, IP set entries and DDB state entry
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
                 create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
+                waf_update_ip_set('alb', 'INSERT', ALB_IP_SET_ID, host_ip)
+                waf_update_ip_set('cloudfront', 'INSERT', CLOUDFRONT_IP_SET_ID, host_ip)
 
                 logger.info("log -- all possible NACL rule numbers, %s" % (rulerange))
                 logger.info("log -- current DDB entries, %s." % (ddbrulerange))
@@ -252,9 +259,11 @@ def update_nacl(netacl_id, host_ip, region):
                 logger.error("log -- NACL has existing entries, %s." % (naclrulerange))
                 exit()
 
-            # Create NACL rule and DDB state entry
+            # Create new NACL rule, IP set entries and DDB state entry
             create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
             create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
+            waf_update_ip_set('alb', 'INSERT', ALB_IP_SET_ID, host_ip)
+            waf_update_ip_set('cloudfront', 'INSERT', CLOUDFRONT_IP_SET_ID, host_ip)
 
             logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
             logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
@@ -407,11 +416,8 @@ def lambda_handler(event, context):
             NetworkAclId = get_netacl_id(subnet_id=SubnetId)
 
         if NetworkAclId:
-            # Update global and regional IP Sets
-            waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], HostIp)
-            waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], HostIp)
 
-            # Update VPC NACL
+            # Update VPC NACL, global and regional IP Sets
             response = update_nacl(netacl_id=NetworkAclId,host_ip=HostIp, region=Region)
 
             #Send Notification

@@ -33,6 +33,8 @@ logger.setLevel(logging.INFO)
 API_CALL_NUM_RETRIES = 1
 ACLMETATABLE = os.environ['ACLMETATABLE']
 RETENTION = os.environ['RETENTION']
+CLOUDFRONT_IP_SET_ID = os.environ['CLOUDFRONT_IP_SET_ID']
+ALB_IP_SET_ID = os.environ['ALB_IP_SET_ID']
 
 #======================================================================================================================
 # Auxiliary Functions
@@ -153,9 +155,9 @@ def lambda_handler(event, context):
                     if len(response_nonexpired['Items']) == 0:
                         # no fresher entry found for that IP
                         logger.info('deleting ALB WAF ip entry')
-                        waf_update_ip_set('alb', os.environ['ALB_IP_SET_ID'], HostIp)
+                        waf_update_ip_set('alb', ALB_IP_SET_ID, HostIp)
                         logger.info('deleting CloudFront WAF ip entry')
-                        waf_update_ip_set('cloudfront', os.environ['CLOUDFRONT_IP_SET_ID'], HostIp)
+                        waf_update_ip_set('cloudfront', CLOUDFRONT_IP_SET_ID, HostIp)
 
                     logger.info('deleting dynamodb item')
                     delete_ddb_rule(item['NetACLId'], item['CreatedAt'])
