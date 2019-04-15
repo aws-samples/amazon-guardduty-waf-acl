@@ -206,7 +206,7 @@ def update_nacl(netacl_id, host_ip, region):
                 waf_update_ip_set('alb', 'INSERT', ALB_IP_SET_ID, host_ip)
                 waf_update_ip_set('cloudfront', 'INSERT', CLOUDFRONT_IP_SET_ID, host_ip)
                 
-                logger.info("log -- all possible NACL rule numbers, %s" % (rulerange))
+                logger.info("log -- all possible NACL rule numbers, %s." % (rulerange))
                 logger.info("log -- current DDB entries, %s." % (ddbrulerange))
                 logger.info("log -- current NACL entries, %s." % (naclrulerange))
                 logger.info("log -- new rule number, %s." % (newruleno))
@@ -228,11 +228,16 @@ def update_nacl(netacl_id, host_ip, region):
 
                 # Delete old NACL rule and DDB state entry
                 delete_netacl_rule(netacl_id=netacl_id, rule_no=oldruleno)
-                waf_update_ip_set('alb', 'DELETE', ALB_IP_SET_ID, oldhostip)
-                waf_update_ip_set('cloudfront', 'DELETE', CLOUDFRONT_IP_SET_ID, oldhostip)
                 delete_ddb_rule(netacl_id=netacl_id, created_at=oldrulets)
 
-                logger.info("log -- delete current rule %s for IP %s from NACL %s, CloudFront Ip set %s and ALB IP set %s." % (oldruleno, oldhostip, netacl_id, CLOUDFRONT_IP_SET_ID, ALB_IP_SET_ID))
+                # check if IP is also recorded in a fresh finding, don't remove IP from blacklist in that case
+                response_nonexpired = table.scan( FilterExpression=Attr('CreatedAt').gt(oldrulets) & Attr('HostIp').eq(host_ip) )
+                if len(response_nonexpired['Items']) == 0:
+                    waf_update_ip_set('alb', 'DELETE', ALB_IP_SET_ID, oldhostip)
+                    waf_update_ip_set('cloudfront', 'DELETE', CLOUDFRONT_IP_SET_ID, oldhostip)
+                    logger.info('log -- deleting ALB and CloudFront WAF IP set entry for host, %s from CloudFront Ip set %s and ALB IP set %s.' % (oldhostip, CLOUDFRONT_IP_SET_ID, ALB_IP_SET_ID))
+
+                logger.info("log -- delete current rule %s for IP %s from NACL %s." % (oldruleno, oldhostip, netacl_id))
 
                 # Create new NACL rule, IP set entries and DDB state entry
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
@@ -240,7 +245,7 @@ def update_nacl(netacl_id, host_ip, region):
                 waf_update_ip_set('alb', 'INSERT', ALB_IP_SET_ID, host_ip)
                 waf_update_ip_set('cloudfront', 'INSERT', CLOUDFRONT_IP_SET_ID, host_ip)
 
-                logger.info("log -- all possible NACL rule numbers, %s" % (rulerange))
+                logger.info("log -- all possible NACL rule numbers, %s." % (rulerange))
                 logger.info("log -- current DDB entries, %s." % (ddbrulerange))
                 logger.info("log -- current NACL entries, %s." % (naclrulerange))
                 logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
