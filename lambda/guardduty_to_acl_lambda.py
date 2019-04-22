@@ -148,7 +148,7 @@ def get_nacl_meta(netacl_id):
 
 #Update NACL and DDB state table
 def update_nacl(netacl_id, host_ip, region):
-    logger.info("entering update_nacl, netacl_id=%s, host_ip=%s" % (netacl_id, host_ip))
+    logger.info("log -- GD2ACL entering update_nacl, netacl_id=%s, host_ip=%s" % (netacl_id, host_ip))
 
     ddb = boto3.resource('dynamodb')
     table = ddb.Table(ACLMETATABLE)
