@@ -68,12 +68,12 @@ def waf_update_ip_set(waf_type, ip_set_id, source_ip):
         except Exception as e:
             logger.error(e)
             delay = math.pow(2, attempt)
-            logger.info("[waf_update_ip_set] Retrying in %d seconds..." % (delay))
+            logger.info("log -- waf_update_ip_set retrying in %d seconds..." % (delay))
             time.sleep(delay)
         else:
             break
     else:
-        logger.error("[waf_update_ip_set] Failed ALL attempts to call API")
+        logger.error("log -- waf_update_ip_set failed ALL attempts to call API")
 
 
 def delete_netacl_rule(netacl_id, rule_no):
@@ -87,10 +87,10 @@ def delete_netacl_rule(netacl_id, rule_no):
             RuleNumber=int(rule_no)
         )
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            logger.info('delete_netacl_rule successful')
+            logger.info('log -- delete_netacl_rule successful')
             return True
         else:
-            logger.info('delete_netacl_rule FAILED')
+            logger.error('log -- delete_netacl_rule FAILED')
             logger.info(response)
             return False
     except Exception as e:
@@ -111,10 +111,10 @@ def delete_ddb_rule(netacl_id, created_at):
         )
 
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-        logger.info('delete_ddb_rule successful')
+        logger.info('log -- delete_ddb_rule successful')
         return True
     else:
-        logger.error('delete_ddb_rule FAILED')
+        logger.error('log -- delete_ddb_rule FAILED')
         logger.info(response['ResponseMetadata'])
         return False
 
@@ -131,7 +131,7 @@ def lambda_handler(event, context):
     try:
         # timestamp is calculated in seconds
         expire_time = int(time.time()) - (int(RETENTION)*60)
-        logger.info("expire_time = %s" % expire_time)
+        logger.info("log -- expire_time = %s" % expire_time)
 
         #scan the ddb table to find expired records
         ddb = boto3.resource('dynamodb')
@@ -147,29 +147,29 @@ def lambda_handler(event, context):
                 logger.info("HostIp %s" %item['HostIp'])
                 HostIp = item['HostIp']
                 try:
-                    logger.info('deleting netacl rule')
+                    logger.info('log -- deleting netacl rule')
                     delete_netacl_rule(item['NetACLId'], item['RuleNo'])
 
                     # check if IP is also recorded in a fresh finding, don't remove IP from blacklist in that case
                     response_nonexpired = table.scan( FilterExpression=Attr('CreatedAt').gt(expire_time) & Attr('HostIp').eq(HostIp) )
                     if len(response_nonexpired['Items']) == 0:
                         # no fresher entry found for that IP
-                        logger.info('deleting ALB WAF ip entry')
+                        logger.info('log -- deleting ALB WAF ip entry')
                         waf_update_ip_set('alb', ALB_IP_SET_ID, HostIp)
-                        logger.info('deleting CloudFront WAF ip entry')
+                        logger.info('log -- deleting CloudFront WAF ip entry')
                         waf_update_ip_set('cloudfront', CLOUDFRONT_IP_SET_ID, HostIp)
 
-                    logger.info('deleting dynamodb item')
+                    logger.info('log -- deleting dynamodb item')
                     delete_ddb_rule(item['NetACLId'], item['CreatedAt'])
 
                 except Exception as e:
                     logger.error(e)
-                    logger.error('could not delete item')
+                    logger.error('log -- could not delete item')
 
             logger.info("Pruning Completed")
                 
         else:
-            logger.info("log -- no etntries older than %s hours." % (int(RETENTION)/60))
+            logger.info("log -- no etntries older than %s hours... exiting GD2ACL pruning." % (int(RETENTION)/60))
 
     except Exception as e:
         logger.error('something went wrong')
