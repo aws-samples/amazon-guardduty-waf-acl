@@ -64,16 +64,16 @@ def waf_update_ip_set(waf_type, update_type, ip_set_id, source_ip):
                     }
                 }]
             )
-            logger.info("[waf_update_ip_set] %s IP %s - IPset %s, WAF type %s successfully..." % (update_type, source_ip, ip_set_id, waf_type))
+            logger.info("log -- waf_update_ip_set %s IP %s - IPset %s, WAF type %s successfully..." % (update_type, source_ip, ip_set_id, waf_type))
         except Exception as e:
             logger.error(e)
             delay = math.pow(2, attempt)
-            logger.info("[waf_update_ip_set] Retrying in %d seconds..." % (delay))
+            logger.info("log -- waf_update_ip_set retrying in %d seconds..." % (delay))
             time.sleep(delay)
         else:
             break
     else:
-        logger.info("[waf_update_ip_set] Failed ALL attempts to call API")
+        logger.info("log -- waf_update_ip_set failed ALL attempts to call WAF API")
 
 
 # Get the current NACL Id associated with subnet
@@ -201,6 +201,7 @@ def update_nacl(netacl_id, host_ip, region):
                 newruleno = min([x for x in rulerange if not x in naclrulerange])
 
                 # Create new NACL rule, IP set entries and DDB state entry
+                logger.info("log -- adding new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
                 create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
                 waf_update_ip_set('alb', 'INSERT', ALB_IP_SET_ID, host_ip)
@@ -210,7 +211,6 @@ def update_nacl(netacl_id, host_ip, region):
                 logger.info("log -- current DDB entries, %s." % (ddbrulerange))
                 logger.info("log -- current NACL entries, %s." % (naclrulerange))
                 logger.info("log -- new rule number, %s." % (newruleno))
-                logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
                 logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
 
             if rulecount >= 10:
@@ -227,6 +227,7 @@ def update_nacl(netacl_id, host_ip, region):
                 newruleno = oldruleno
 
                 # Delete old NACL rule and DDB state entry
+                logger.info("log -- deleting current rule %s for IP %s from NACL %s." % (oldruleno, oldhostip, netacl_id))
                 delete_netacl_rule(netacl_id=netacl_id, rule_no=oldruleno)
                 delete_ddb_rule(netacl_id=netacl_id, created_at=oldrulets)
 
@@ -237,9 +238,8 @@ def update_nacl(netacl_id, host_ip, region):
                     waf_update_ip_set('cloudfront', 'DELETE', CLOUDFRONT_IP_SET_ID, oldhostip)
                     logger.info('log -- deleting ALB and CloudFront WAF IP set entry for host, %s from CloudFront Ip set %s and ALB IP set %s.' % (oldhostip, CLOUDFRONT_IP_SET_ID, ALB_IP_SET_ID))
 
-                logger.info("log -- delete current rule %s for IP %s from NACL %s." % (oldruleno, oldhostip, netacl_id))
-
                 # Create new NACL rule, IP set entries and DDB state entry
+                logger.info("log -- adding new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
                 create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
                 waf_update_ip_set('alb', 'INSERT', ALB_IP_SET_ID, host_ip)
@@ -248,7 +248,6 @@ def update_nacl(netacl_id, host_ip, region):
                 logger.info("log -- all possible NACL rule numbers, %s." % (rulerange))
                 logger.info("log -- current DDB entries, %s." % (ddbrulerange))
                 logger.info("log -- current NACL entries, %s." % (naclrulerange))
-                logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
                 logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount)))
 
         else:
@@ -265,12 +264,12 @@ def update_nacl(netacl_id, host_ip, region):
                 exit()
 
             # Create new NACL rule, IP set entries and DDB state entry
+            logger.info("log -- adding new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
             create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
             create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
             waf_update_ip_set('alb', 'INSERT', ALB_IP_SET_ID, host_ip)
             waf_update_ip_set('cloudfront', 'INSERT', CLOUDFRONT_IP_SET_ID, host_ip)
 
-            logger.info("log -- add new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
             logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
 
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
@@ -298,8 +297,11 @@ def create_netacl_rule(netacl_id, host_ip, rule_no):
     )
 
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+        logger.info("log -- successfully added new rule %s, HostIP %s, to NACL %s." % (rule_no, host_ip, netacl_id))
         return True
     else:
+        logger.error("log -- error adding new rule %s, HostIP %s, to NACL %s." % (rule_no, host_ip, netacl_id))
+        logger.info(response)
         return False
 
 
@@ -315,8 +317,11 @@ def delete_netacl_rule(netacl_id, rule_no):
     )
 
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+        logger.info("log -- successfully deleted rule %s, from NACL %s." % (rule_no, netacl_id))
         return True
     else:
+        logger.info("log -- error deleting rule %s, from NACL %s." % (rule_no, netacl_id))
+        logger.info(response)
         return False
 
 
@@ -338,8 +343,11 @@ def create_ddb_rule(netacl_id, host_ip, rule_no, region):
         )
 
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+        logger.info("log -- successfully added DDB state entry for rule %s, HostIP %s, NACL %s." % (rule_no, host_ip, netacl_id))
         return True
     else:
+        logger.error("log -- error adding DDB state entry for rule %s, HostIP %s, NACL %s." % (rule_no, host_ip, netacl_id))
+        logger.info(response)
         return False
 
 
@@ -358,8 +366,11 @@ def delete_ddb_rule(netacl_id, created_at):
         )
 
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+        logger.info("log -- successfully deleted DDB state entry for NACL %s." % (netacl_id))
         return True
     else:
+        logger.error("log -- error deleting DDB state entry for NACL %s." % (netacl_id))
+        logger.info(response)
         return False
 
 
@@ -386,11 +397,11 @@ def admin_notify(iphost, findingtype, naclid, region, instanceid):
             Message = MESSAGE,
             Subject='AWS GD2ACL Alert'
         )
-        logger.info("Notification sent to SNS Topic: %s" % (SNSTOPIC))
+        logger.info("log -- send notification sent to SNS Topic: %s" % (SNSTOPIC))
 
     # Display an error if something goes wrong.
     except ClientError as e:
-        logger.error('Error sending notification.')
+        logger.error('log -- error sending notification.')
         raise
 
 
@@ -428,12 +439,12 @@ def lambda_handler(event, context):
             #Send Notification
             admin_notify(HostIp, event["detail"]["type"], NetworkAclId, Region, instanceid = instanceID)
 
-            logger.info("processing GuardDuty finding completed successfully")
+            logger.info("log -- processing GuardDuty finding completed successfully")
 
         else:
-            logger.info("Unable to determine NetworkAclId for instanceID: %s, HostIp: %s, SubnetId: %s. Confirm resources exist." % (instanceID, HostIp, SubnetId))
+            logger.info("log -- unable to determine NetworkAclId for instanceID: %s, HostIp: %s, SubnetId: %s. Confirm resources exist." % (instanceID, HostIp, SubnetId))
             pass
 
     except Exception as e:
-        logger.error('Something went wrong.')
+        logger.error('log -- something went wrong.')
         raise
