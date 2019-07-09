@@ -418,26 +418,29 @@ def lambda_handler(event, context):
     try:
 
         if event["detail"]["type"] == 'Recon:EC2/PortProbeUnprotectedPort':
-            Region = event["region"]
-            SubnetId = event["detail"]["resource"]["instanceDetails"]["networkInterfaces"][0]["subnetId"]
-            HostIp = event["detail"]["service"]["action"]["portProbeAction"]["portProbeDetails"][0]["remoteIpDetails"]["ipAddressV4"]
-            instanceID = event["detail"]["resource"]["instanceDetails"]["instanceId"]
-            NetworkAclId = get_netacl_id(subnet_id=SubnetId)
+                HostIp = []
+                Region = event["region"]
+                SubnetId = event["detail"]["resource"]["instanceDetails"]["networkInterfaces"][0]["subnetId"]
+                for i in event["detail"]["service"]["action"]["portProbeAction"]["portProbeDetails"]:
+                    HostIp.append(str(i["remoteIpDetails"]["ipAddressV4"]))
+                instanceID = event["detail"]["resource"]["instanceDetails"]["instanceId"]
+                NetworkAclId = get_netacl_id(subnet_id=SubnetId)
 
         else:
             Region = event["region"]
             SubnetId = event["detail"]["resource"]["instanceDetails"]["networkInterfaces"][0]["subnetId"]
-            HostIp = event["detail"]["service"]["action"]["networkConnectionAction"]["remoteIpDetails"]["ipAddressV4"]
+            HostIp = [event["detail"]["service"]["action"]["networkConnectionAction"]["remoteIpDetails"]["ipAddressV4"]]
             instanceID = event["detail"]["resource"]["instanceDetails"]["instanceId"]
             NetworkAclId = get_netacl_id(subnet_id=SubnetId)
 
         if NetworkAclId:
 
             # Update VPC NACL, global and regional IP Sets
-            response = update_nacl(netacl_id=NetworkAclId,host_ip=HostIp, region=Region)
+            for ip in HostIp:
+                response = update_nacl(netacl_id=NetworkAclId, host_ip=ip, region=Region)
 
             #Send Notification
-            admin_notify(HostIp, event["detail"]["type"], NetworkAclId, Region, instanceid = instanceID)
+            admin_notify(str(HostIp), event["detail"]["type"], NetworkAclId, Region, instanceid = instanceID)
 
             logger.info("log -- processing GuardDuty finding completed successfully")
 
