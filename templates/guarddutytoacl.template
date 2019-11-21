@@ -201,6 +201,7 @@ Resources:
     Properties:
       FunctionName: !Ref "GuardDutytoACLLambda"
       Action: "lambda:InvokeFunction"
+      SourceArn: !GetAtt GuardDutytoACLEvent.Arn
       Principal: "events.amazonaws.com"
 
   GuardDutytoACLDDBTable:
