@@ -265,7 +265,7 @@ Resources:
             Ref: "CloudFrontBlacklistIPSetRule"
 
   ALBBlacklistIPSet:
-    Condition: CreateCloudFrontWebACL
+    Condition: CreateALBWebACL
     Type: AWS::WAFRegional::IPSet
     Properties:
       Name: "GD2ACL ALB IPSet for blacklisted IP adresses"
@@ -275,7 +275,7 @@ Resources:
           Value: "127.0.0.1/32"
 
   ALBBlacklistIPSetRule:
-    Condition: CreateCloudFrontWebACL
+    Condition: CreateALBWebACL
     Type: AWS::WAFRegional::Rule
     Properties:
       Name: "GD2ACLALBBlacklistIPSetRule"
@@ -288,7 +288,7 @@ Resources:
           Type: "IPMatch"
 
   ALBBlacklistWebACL:
-    Condition: CreateCloudFrontWebACL
+    Condition: CreateALBWebACL
     Type: AWS::WAFRegional::WebACL
     Properties:
       Name: "GD2ACL ALB WebACL to block blacklisted IP addresses"
