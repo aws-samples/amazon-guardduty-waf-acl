@@ -33,38 +33,54 @@ logger.setLevel(logging.INFO)
 API_CALL_NUM_RETRIES = 1
 ACLMETATABLE = os.environ['ACLMETATABLE']
 RETENTION = os.environ['RETENTION']
-CLOUDFRONT_IP_SET_ID = os.environ['CLOUDFRONT_IP_SET_ID']
-ALB_IP_SET_ID = os.environ['ALB_IP_SET_ID']
+CLOUDFRONT_IP_SET = os.environ['CLOUDFRONT_IP_SET']
+REGIONAL_IP_SET = os.environ['REGIONAL_IP_SET']
+
+CloudFrontIpSet = CLOUDFRONT_IP_SET.split("|")
+RegionalIpSet = REGIONAL_IP_SET.split("|")
 
 #======================================================================================================================
 # Auxiliary Functions
 #======================================================================================================================
 
 
-def waf_update_ip_set(waf_type, ip_set_id, source_ip):
+def get_ip_set(ip_set_name, ip_set_id, ip_set_scope):
+    client = boto3.client('wafv2')
+    response = client.get_ip_set(
+        Name = ip_set_name,
+        Scope = ip_set_scope,
+        Id = ip_set_id
+        )
+    return response
 
-    if waf_type == 'alb':
-        logger.info('creating waf regional object')
-        session = boto3.session.Session(region_name=os.environ['AWS_REGION'])
-        waf = session.client('waf-regional')
-    elif waf_type == 'cloudfront':
-        logger.info('creating waf global object')
-        waf = boto3.client('waf')
-    logger.info('type of WAF: %s' % waf_type )
+
+def get_ddb_ips():
+    ddb = boto3.resource('dynamodb')
+    table = ddb.Table(ACLMETATABLE)
+    data = table.scan(FilterExpression=Attr('Region').eq(os.environ['AWS_REGION']))
+    response = []
+    for i in data['Items']:
+        response.append(i['HostIp'] + "/32")
+    logger.info("log --  hosts in ddb: %s" % (response))
+    return response
+
+
+def waf_update_ip_set(ip_set_name, ip_set_id, ip_set_scope, source_ips):
+    logger.info('creating waf object')
+    waf = boto3.client('wafv2')
+    
     for attempt in range(API_CALL_NUM_RETRIES):
+        logger.info('type of IPset: %s' % ip_set_id )
         try:
-            response = waf.update_ip_set(IPSetId=ip_set_id,
-                ChangeToken=waf.get_change_token()['ChangeToken'],
-                Updates=[{
-                    'Action': 'DELETE',
-                    'IPSetDescriptor': {
-                        'Type': 'IPV4',
-                        'Value': "%s/32"%source_ip
-                    }
-                }]
-            )
+            response = waf.update_ip_set(
+                Name = ip_set_name,
+                Id = ip_set_id,
+                Scope = ip_set_scope,
+                LockToken = get_ip_set(ip_set_name, ip_set_id, ip_set_scope)['LockToken'],
+                    Addresses=source_ips
+                    )
             logger.info(response)
-            logger.info('successfully deleted ip %s' %source_ip)
+            logger.info("log -- waf_update_ip_set %s IPs %s - type %s successfully..." % (ip_set_id, source_ips, ip_set_scope))
         except Exception as e:
             logger.error(e)
             delay = math.pow(2, attempt)
@@ -150,17 +166,17 @@ def lambda_handler(event, context):
                     logger.info('log -- deleting netacl rule')
                     delete_netacl_rule(item['NetACLId'], item['RuleNo'])
 
-                    # check if IP is also recorded in a fresh finding, don't remove IP from blacklist in that case
+                    # check if IP is also recorded in a fresh finding, don't remove IP from blocklist in that case
                     response_nonexpired = table.scan( FilterExpression=Attr('CreatedAt').gt(expire_time) & Attr('HostIp').eq(HostIp) )
-                    if len(response_nonexpired['Items']) == 0:
-                        # no fresher entry found for that IP
-                        logger.info('log -- deleting ALB WAF ip entry')
-                        waf_update_ip_set('alb', ALB_IP_SET_ID, HostIp)
-                        logger.info('log -- deleting CloudFront WAF ip entry')
-                        waf_update_ip_set('cloudfront', CLOUDFRONT_IP_SET_ID, HostIp)
-
                     logger.info('log -- deleting dynamodb item')
-                    delete_ddb_rule(item['NetACLId'], item['CreatedAt'])
+                    if len(response_nonexpired['Items']) == 0:
+                        delete_ddb_rule(item['NetACLId'], item['CreatedAt'])
+                        # no fresher entry found for that IP
+                        logger.info('log -- deleting Regional WAF ip entry')
+                        ddb_ips = get_ddb_ips()
+                        waf_update_ip_set(RegionalIpSet[0], RegionalIpSet[1], RegionalIpSet[2], ddb_ips)
+                        logger.info('log -- deleting CloudFront WAF ip entry')
+                        waf_update_ip_set(CloudFrontIpSet[0], CloudFrontIpSet[1], CloudFrontIpSet[2], ddb_ips)
 
                 except Exception as e:
                     logger.error(e)
