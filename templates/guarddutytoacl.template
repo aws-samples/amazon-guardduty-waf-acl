@@ -94,7 +94,7 @@ Resources:
           SNSTOPIC: !Ref GuardDutytoACLSNSTopic
       Code:
         S3Bucket: !Sub ${ArtifactsBucket}
-        S3Key: !Sub ${ArtifactsPrefix}guardduty_to_acl_lambda.zip
+        S3Key: !Sub ${ArtifactsPrefix}guardduty_to_acl_lambda_wafv2.zip
 
   GuardDutytoACLRole:
     Type: AWS::IAM::Role
@@ -337,7 +337,7 @@ Resources:
           RETENTION: !Ref Retention
       Code:
         S3Bucket: !Sub ${ArtifactsBucket}
-        S3Key: !Sub ${ArtifactsPrefix}prune_old_entries.zip
+        S3Key: !Sub ${ArtifactsPrefix}prune_old_entries_wafv2.zip
 
   PruneOldEntriesRole:
     Type: AWS::IAM::Role
