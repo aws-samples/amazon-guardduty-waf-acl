@@ -455,7 +455,7 @@ def lambda_handler(event, context):
     logger.info("log -- Event: %s " % json.dumps(event))
 
     try:
-        if event["detail"]["type"] == 'Recon:EC2/PortProbeUnprotectedPort':
+        if 'Recon:EC2/PortProbe' in event["detail"]["type"]:
             HostIp = []
             remoteIpDetail = find_values('remoteIpDetails', json.dumps(event))
             Region = event["region"]
@@ -467,15 +467,17 @@ def lambda_handler(event, context):
         else:
             HostIp = []
             Region = event["region"]
-            remoteIpDetail = find_values('remoteIpDetails', json.dumps(event))
-            SubnetId = find_values('subnetId', json.dumps(event))
-            HostIp.append(str(remoteIpDetail[0]['ipAddressV4']))
             instanceID = find_values('instanceId', json.dumps(event))
+            SubnetId = find_values('subnetId', json.dumps(event))
+            remoteIpDetail = find_values('remoteIpDetails', json.dumps(event))
+            print((remoteIpDetail)[0]["ipAddressV4"])
+            if remoteIpDetail:
+                HostIp.append((remoteIpDetail)[0]["ipAddressV4"])
             if SubnetId:
                 NetworkAclId = get_netacl_id(subnet_id=SubnetId[0])
 
         if NetworkAclId:
-            logger.info("log -- gd2acl attempting to process finding data: instanceID: %s - SubnetId: %s - HostIp: %s" % (instanceID[0], SubnetId[0], HostIp))
+            logger.info("log -- gd2acl attempting to process finding data: instanceID: %s - SubnetId: %s - RemoteHostIp: %s" % (instanceID[0], SubnetId[0], HostIp))
             # Update VPC NACL, global and regional IP Sets
             for ip in HostIp:
                 response = update_nacl(netacl_id=NetworkAclId, host_ip=ip, region=Region)
@@ -486,7 +488,7 @@ def lambda_handler(event, context):
             logger.info("log -- processing GuardDuty finding completed successfully")
 
         else:
-            logger.info("log -- unable to determine NetworkAclId for instanceID: %s, HostIp: %s, SubnetId: %s. Confirm resources exist." % (instanceID, HostIp, SubnetId))
+            logger.info("log -- unable to determine NetworkAclId for instanceID: %s, SubnetId: %s. Confirm resources exist." % (instanceID, SubnetId))
             pass
 
     except Exception as e:
