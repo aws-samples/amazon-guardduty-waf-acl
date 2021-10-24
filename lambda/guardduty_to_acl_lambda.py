@@ -470,7 +470,6 @@ def lambda_handler(event, context):
             instanceID = find_values('instanceId', json.dumps(event))
             SubnetId = find_values('subnetId', json.dumps(event))
             remoteIpDetail = find_values('remoteIpDetails', json.dumps(event))
-            print((remoteIpDetail)[0]["ipAddressV4"])
             if remoteIpDetail:
                 HostIp.append((remoteIpDetail)[0]["ipAddressV4"])
             if SubnetId:
