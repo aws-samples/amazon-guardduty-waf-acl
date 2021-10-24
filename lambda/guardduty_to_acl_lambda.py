@@ -20,6 +20,7 @@ import time
 import json
 import logging
 import os
+import json
 from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import ClientError
 
@@ -66,6 +67,20 @@ def get_ddb_ips():
     for i in data['Items']:
         response.append(i['HostIp'] + "/32")
     logger.info("log --  hosts in ddb: %s" % (response))
+    return response
+
+
+def find_values(id, json_repr):
+    response = []
+
+    def _decode_dict(a_dict):
+        try:
+            response.append(a_dict[id])
+        except KeyError:
+            pass
+        return a_dict
+
+    json.loads(json_repr, object_hook=_decode_dict) # Return value ignored.
     return response
 
 
@@ -167,7 +182,7 @@ def get_nacl_meta(netacl_id):
 
 #Update NACL and DDB state table
 def update_nacl(netacl_id, host_ip, region):
-    logger.info("log -- GD2ACL entering update_nacl, netacl_id=%s, host_ip=%s" % (netacl_id, host_ip))
+    logger.info("log -- gd2acl entering update_nacl, netacl_id=%s, host_ip=%s" % (netacl_id, host_ip))
 
     ddb = boto3.resource('dynamodb')
     table = ddb.Table(ACLMETATABLE)
@@ -440,31 +455,33 @@ def lambda_handler(event, context):
     logger.info("log -- Event: %s " % json.dumps(event))
 
     try:
-
-        if 'Recon:EC2' in event["detail"]["type"]:
+        if event["detail"]["type"] == 'Recon:EC2/PortProbeUnprotectedPort':
             HostIp = []
+            remoteIpDetail = find_values('remoteIpDetails', json.dumps(event))
             Region = event["region"]
             SubnetId = event["detail"]["resource"]["instanceDetails"]["networkInterfaces"][0]["subnetId"]
             for i in event["detail"]["service"]["action"]["portProbeAction"]["portProbeDetails"]:
                 HostIp.append(str(i["remoteIpDetails"]["ipAddressV4"]))
             instanceID = event["detail"]["resource"]["instanceDetails"]["instanceId"]
             NetworkAclId = get_netacl_id(subnet_id=SubnetId)
-
         else:
+            HostIp = []
             Region = event["region"]
-            SubnetId = event["detail"]["resource"]["instanceDetails"]["networkInterfaces"][0]["subnetId"]
-            HostIp = [event["detail"]["service"]["action"]["networkConnectionAction"]["remoteIpDetails"]["ipAddressV4"]]
-            instanceID = event["detail"]["resource"]["instanceDetails"]["instanceId"]
-            NetworkAclId = get_netacl_id(subnet_id=SubnetId)
+            remoteIpDetail = find_values('remoteIpDetails', json.dumps(event))
+            SubnetId = find_values('subnetId', json.dumps(event))
+            HostIp.append(str(remoteIpDetail[0]['ipAddressV4']))
+            instanceID = find_values('instanceId', json.dumps(event))
+            if SubnetId:
+                NetworkAclId = get_netacl_id(subnet_id=SubnetId[0])
 
         if NetworkAclId:
-
+            logger.info("log -- gd2acl attempting to process finding data: instanceID: %s - SubnetId: %s - HostIp: %s" % (instanceID[0], SubnetId[0], HostIp))
             # Update VPC NACL, global and regional IP Sets
             for ip in HostIp:
                 response = update_nacl(netacl_id=NetworkAclId, host_ip=ip, region=Region)
 
             #Send Notification
-            admin_notify(str(HostIp), event["detail"]["type"], NetworkAclId, Region, instanceid = instanceID)
+            admin_notify(str(HostIp), event["detail"]["type"], NetworkAclId, Region, str(instanceID))
 
             logger.info("log -- processing GuardDuty finding completed successfully")
 

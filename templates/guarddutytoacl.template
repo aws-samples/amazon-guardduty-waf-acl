@@ -15,14 +15,14 @@ Parameters:
     Description: Email address to receive notifications. Must be a valid email address.
     Type: String
     AllowedPattern: ^(?:[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$
-  CloudFrontIPSetId:
+  CloudFrontWebACL:
     Type: String
     Default: 'False'
-    Description: ID for existing CloudFront IP Set. Enter if there is an existing CloudFront IP Set to use. Leave set to False for creation of new CloufFront Web ACL and IP Set.
-  RegionalIPSetId:
+    Description: Create CloudFront Web ACL? CloudFront IP set will be created automatically.
+  RegionalWebACL:
     Type: String
     Default: 'False'
-    Description: ID for existing Regional IP Set. Enter if there is an existing Regional IP Set to use. This must be in region. Leave set to False for creation of new Regional Web ACL and IP Set.
+    Description: Create Regional Web ACL? Regional IP set will be created automatically.
   ArtifactsBucket:
     Description: S3 bucket with artifact files (Lambda functions, templates, html files, etc.). Leave default for N. Virginia.
     Type: String
@@ -70,8 +70,8 @@ Metadata:
 
 Conditions:
 # Create CloudFront or Regional Web ACL?
-  CreateCloudFrontWebACL: !Equals [!Ref CloudFrontIPSetId, 'False' ]
-  CreateRegionalWebACL: !Equals [!Ref RegionalIPSetId, 'False' ]
+  CreateCloudFrontWebACL: !Equals [!Ref CloudFrontWebACL, 'True' ]
+  CreateRegionalWebACL: !Equals [!Ref RegionalWebACL, 'True' ]
 
 Resources:
 
@@ -89,8 +89,8 @@ Resources:
       Environment:
         Variables:
           ACLMETATABLE: !Ref GuardDutytoACLDDBTable
-          REGIONAL_IP_SET: !If [ CreateRegionalWebACL, !Ref RegionalBlocklistIPSetV4, !Ref RegionalIPSetId ]
-          CLOUDFRONT_IP_SET: !If [ CreateCloudFrontWebACL, !Ref CloudFrontBlocklistIPSetV4, !Ref CloudFrontIPSetId ]
+          REGIONAL_IP_SET: !Ref RegionalBlocklistIPSetV4
+          CLOUDFRONT_IP_SET: !Ref CloudFrontBlocklistIPSetV4
           SNSTOPIC: !Ref GuardDutytoACLSNSTopic
       Code:
         S3Bucket: !Sub ${ArtifactsBucket}
@@ -126,13 +126,13 @@ Resources:
             Action:
             - wafv2:GetIPSet
             - wafv2:UpdateIPSet
-            Resource: !If [ CreateCloudFrontWebACL, !Sub '${CloudFrontBlocklistIPSetV4.Arn}', !Sub 'arn:aws:wafv2::${AWS::AccountId}:ipset/${CloudFrontIPSetId}' ]
+            Resource: !Sub '${CloudFrontBlocklistIPSetV4.Arn}'
           -
             Effect: Allow
             Action:
             - wafv2:GetIPSet
             - wafv2:UpdateIPSet
-            Resource: !If [ CreateRegionalWebACL, !Sub '${RegionalBlocklistIPSetV4.Arn}', !Sub 'arn:aws:waf-regional:${AWS::Region}:${AWS::AccountId}:ipset/${RegionalIPSetId}' ]
+            Resource: !Sub '${RegionalBlocklistIPSetV4.Arn}'
           -
             Effect: Allow
             Action:
@@ -223,7 +223,6 @@ Resources:
         WriteCapacityUnits: "5"
 
   CloudFrontBlocklistIPSetV4:
-    Condition: CreateCloudFrontWebACL
     Type: 'AWS::WAFv2::IPSet'
     Properties:
       Description: GD2ACLIPSetV4
@@ -233,7 +232,6 @@ Resources:
         - 127.0.0.0/8
         
   CloudFrontBlocklistIPSetV6:
-    Condition: CreateCloudFrontWebACL
     Type: 'AWS::WAFv2::IPSet'
     Properties:
       Description: GD2ACLIPSetV6
@@ -271,7 +269,6 @@ Resources:
                   Arn: !GetAtt CloudFrontBlocklistIPSetV6.Arn
 
   RegionalBlocklistIPSetV4:
-    Condition: CreateRegionalWebACL
     Type: 'AWS::WAFv2::IPSet'
     Properties:
       Description: GD2ACLIPSetV4
@@ -281,7 +278,6 @@ Resources:
         - 127.0.0.0/8
         
   RegionalBlocklistIPSetV6:
-    Condition: CreateRegionalWebACL
     Type: 'AWS::WAFv2::IPSet'
     Properties:
       Description: GD2ACLIPSetV6
@@ -332,8 +328,8 @@ Resources:
       Environment:
         Variables:
           ACLMETATABLE: !Ref GuardDutytoACLDDBTable
-          REGIONAL_IP_SET: !If [ CreateRegionalWebACL, !Ref RegionalBlocklistIPSetV4, !Ref RegionalIPSetId ]
-          CLOUDFRONT_IP_SET: !If [ CreateCloudFrontWebACL, !Ref CloudFrontBlocklistIPSetV4, !Ref CloudFrontIPSetId ]
+          REGIONAL_IP_SET: !Ref RegionalBlocklistIPSetV4
+          CLOUDFRONT_IP_SET: !Ref CloudFrontBlocklistIPSetV4
           RETENTION: !Ref Retention
       Code:
         S3Bucket: !Sub ${ArtifactsBucket}
@@ -369,13 +365,13 @@ Resources:
             Action:
             - wafv2:GetIPSet
             - wafv2:UpdateIPSet
-            Resource: !If [ CreateCloudFrontWebACL, !Sub '${CloudFrontBlocklistIPSetV4.Arn}', !Sub 'arn:aws:wafv2::${AWS::AccountId}:ipset/${CloudFrontIPSetId}' ]
+            Resource: !Sub '${CloudFrontBlocklistIPSetV4.Arn}'
           -
             Effect: Allow
             Action:
             - wafv2:GetIPSet
             - wafv2:UpdateIPSet
-            Resource: !If [ CreateRegionalWebACL, !Sub '${RegionalBlocklistIPSetV4.Arn}', !Sub 'arn:aws:waf-regional:${AWS::Region}:${AWS::AccountId}:ipset/${RegionalIPSetId}' ]
+            Resource: !Sub '${RegionalBlocklistIPSetV4.Arn}'
           -
             Effect: Allow
             Action:
@@ -452,11 +448,19 @@ Outputs:
     Description: GD2ACL DynamoDB State Table
     Value: !Ref GuardDutytoACLDDBTable
   RegionalIPSetId:
-    Description: Regional WAF IP Set Id
-    Value: !If [ CreateRegionalWebACL, !Ref RegionalBlocklistIPSetV4, !Ref RegionalIPSetId ]
+    Description: Regional IP Set
+    Value: !Ref RegionalBlocklistIPSetV4
   CloudFrontIPSetId:
-    Description: CloudFront WAF IP Set Id
-    Value: !If [ CreateCloudFrontWebACL, !Ref CloudFrontBlocklistIPSetV4, !Ref CloudFrontIPSetId ]
+    Description: CloudFront IP Set
+    Value: !Ref CloudFrontBlocklistIPSetV4
+  RegionalWebACL:
+    Condition: CreateRegionalWebACL
+    Description: Regional Web ACL
+    Value: !Ref RegionalBlocklistWebACL
+  CloudFrontWebACL:
+    Condition: CreateCloudFrontWebACL
+    Description: CloudFront Web ACL
+    Value: !Ref CloudFrontBlocklistWebACL
   Retention:
     Description: ACL Entry Time to Live in Minutes
     Value: !Ref Retention
