@@ -491,7 +491,7 @@ def lambda_handler(event, context):
             logger.info("log -- processing GuardDuty finding completed successfully")
 
         else:
-            logger.error("log -- unable to determine required info for instanceID: %s, SubnetId: %s." % (instanceID, SubnetId))
+            logger.error("log -- unable to determine required info from finding - instanceID: %s, SubnetId: %s, RemoteIp: %s" % (instanceID, SubnetId, HostIp))
             pass
 
     except Exception as e:
