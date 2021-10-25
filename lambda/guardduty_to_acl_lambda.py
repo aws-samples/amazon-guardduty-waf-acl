@@ -107,7 +107,7 @@ def waf_update_ip_set(ip_set_name, ip_set_id, ip_set_scope, source_ips):
         else:
             break
     else:
-        logger.info("log -- waf_update_ip_set failed ALL attempts to call WAF API")
+        logger.error("log -- waf_update_ip_set failed ALL attempts to call WAF API")
 
 
 # Get the current NACL Id associated with subnet
@@ -414,16 +414,16 @@ def delete_ddb_rule(netacl_id, created_at):
 
 
 # Send notification to SNS topic
-def admin_notify(iphost, findingtype, naclid, region, instanceid):
+def admin_notify(iphost, findingtype, naclid, region, instanceid, findingid):
 
     MESSAGE = ("GuardDuty to ACL Event Info:\r\n"
-                 "Suspicious activity detected from host " + iphost + " due to " + findingtype + "."
-                 "  The following ACL resources were targeted for update as needed; "
-                 "CloudFront IP Set: " + CLOUDFRONT_IP_SET + ", "
-                 "Regional IP Set: " + REGIONAL_IP_SET + ", "
-                 "VPC NACL: " + naclid + ", "
-                 "EC2 Instance: " + instanceid + ", "
-                 "Region: " + region + ". "
+                 "Suspicious activity detected from host " + iphost + " due to " + findingtype +
+                 "against EC2 Instance: " + instanceid + ". The following ACL resources were targeted for update as needed: " + '\n'
+                 "CloudFront IP Set: " + CLOUDFRONT_IP_SET + '\n'
+                 "Regional IP Set: " + REGIONAL_IP_SET + '\n'
+                 "VPC NACL: " + naclid + '\n'
+                 "Region: " + region + '\n'
+                 "Finding Link: " + "https://console.aws.amazon.com/guardduty/home?region=" + region + "#/findings?macros=current&search=id%3D" + findingid
                 )
 
     sns = boto3.client(service_name="sns")
@@ -457,6 +457,7 @@ def lambda_handler(event, context):
     try:
         if 'Recon:EC2/PortProbe' in event["detail"]["type"]:
             HostIp = []
+            FindingID = event["id"]
             remoteIpDetail = find_values('remoteIpDetails', json.dumps(event))
             Region = event["region"]
             SubnetId = event["detail"]["resource"]["instanceDetails"]["networkInterfaces"][0]["subnetId"]
@@ -466,6 +467,7 @@ def lambda_handler(event, context):
             NetworkAclId = get_netacl_id(subnet_id=SubnetId)
         else:
             HostIp = []
+            FindingID = event["id"]
             Region = event["region"]
             instanceID = find_values('instanceId', json.dumps(event))
             SubnetId = find_values('subnetId', json.dumps(event))
@@ -482,12 +484,13 @@ def lambda_handler(event, context):
                 response = update_nacl(netacl_id=NetworkAclId, host_ip=ip, region=Region)
 
             #Send Notification
-            admin_notify(str(HostIp), event["detail"]["type"], NetworkAclId, Region, str(instanceID))
+            print(FindingID)
+            admin_notify(str(HostIp), event["detail"]["type"], NetworkAclId, Region, str(instanceID), str(FindingID))
 
             logger.info("log -- processing GuardDuty finding completed successfully")
 
         else:
-            logger.info("log -- unable to determine NetworkAclId for instanceID: %s, SubnetId: %s. Confirm resources exist." % (instanceID, SubnetId))
+            logger.error("log -- unable to determine NetworkAclId for instanceID: %s, SubnetId: %s. Confirm resources exist." % (instanceID, SubnetId))
             pass
 
     except Exception as e:
