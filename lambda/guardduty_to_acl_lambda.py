@@ -472,12 +472,13 @@ def lambda_handler(event, context):
             instanceID = find_values('instanceId', json.dumps(event))
             SubnetId = find_values('subnetId', json.dumps(event))
             remoteIpDetail = find_values('remoteIpDetails', json.dumps(event))
-            if remoteIpDetail:
+            if not remoteIpDetail or not SubnetId:
+                pass
+            else:
                 HostIp.append((remoteIpDetail)[0]["ipAddressV4"])
-            if SubnetId:
                 NetworkAclId = get_netacl_id(subnet_id=SubnetId[0])
 
-        if NetworkAclId:
+        if len(HostIp) > 0:
             logger.info("log -- gd2acl attempting to process finding data: instanceID: %s - SubnetId: %s - RemoteHostIp: %s" % (instanceID[0], SubnetId[0], HostIp))
             # Update VPC NACL, global and regional IP Sets
             for ip in HostIp:
@@ -490,7 +491,7 @@ def lambda_handler(event, context):
             logger.info("log -- processing GuardDuty finding completed successfully")
 
         else:
-            logger.error("log -- unable to determine NetworkAclId for instanceID: %s, SubnetId: %s. Confirm resources exist." % (instanceID, SubnetId))
+            logger.error("log -- unable to determine required info for instanceID: %s, SubnetId: %s." % (instanceID, SubnetId))
             pass
 
     except Exception as e:
