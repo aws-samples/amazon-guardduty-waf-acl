@@ -457,7 +457,7 @@ def lambda_handler(event, context):
     try:
         if 'Recon:EC2/PortProbe' in event["detail"]["type"]:
             HostIp = []
-            FindingID = event["id"]
+            FindingID = event["detail"]["id"]
             remoteIpDetail = find_values('remoteIpDetails', json.dumps(event))
             Region = event["region"]
             SubnetId = event["detail"]["resource"]["instanceDetails"]["networkInterfaces"][0]["subnetId"]
@@ -467,7 +467,7 @@ def lambda_handler(event, context):
             NetworkAclId = get_netacl_id(subnet_id=SubnetId)
         else:
             HostIp = []
-            FindingID = event["id"]
+            FindingID = event["detail"]["id"]
             Region = event["region"]
             instanceID = find_values('instanceId', json.dumps(event))
             SubnetId = find_values('subnetId', json.dumps(event))
