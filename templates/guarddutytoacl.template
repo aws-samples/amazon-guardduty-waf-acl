@@ -24,16 +24,15 @@ Parameters:
     Default: 'False'
     Description: Create Regional Web ACL? Regional IP set will be created automatically.
   ArtifactsBucket:
-    Description: S3 bucket with artifact files (Lambda functions, templates, html files, etc.). Leave default for N. Virginia.
+    Description: S3 bucket with artifact files (Lambda functions, templates, html files, etc.).
     Type: String
-    Default: awsiammedia
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription: ArtifactsBucket S3 bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-).
       It cannot start or end with a hyphen (-).
   ArtifactsPrefix:
-    Description: Path in the S3 bucket containing artifact files. Leave default for N. Virginia.
+    Description: Path in the S3 bucket containing artifact files.
     Type: String
-    Default: public/sample/
+    Default: /
     AllowedPattern: ^[0-9a-zA-Z-/]*$
     ConstraintDescription: ArtifactsPrefix key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-),
       and forward slash (/).
