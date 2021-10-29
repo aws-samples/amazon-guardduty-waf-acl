@@ -1,7 +1,7 @@
 {
   "region": "us-east-1",
-  "id": "02be5693b63eea1d67e6f321c6aee4f3",
   "detail": {
+    "id": "02be5693b63eea1d67e6f321c6aee4f3",
     "type": "UnauthorizedAccess:EC2/SSHBruteForce",
     "resource": {
       "resourceType": "Instance",

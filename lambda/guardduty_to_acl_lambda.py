@@ -66,7 +66,7 @@ def get_ddb_ips():
     response = []
     for i in data['Items']:
         response.append(i['HostIp'] + "/32")
-    logger.info("log --  hosts in ddb: %s" % (response))
+    logger.debug("log --  hosts in ddb: %s" % (response))
     return response
 
 
@@ -108,6 +108,14 @@ def waf_update_ip_set(ip_set_name, ip_set_id, ip_set_scope, source_ips):
             break
     else:
         logger.error("log -- waf_update_ip_set failed ALL attempts to call WAF API")
+
+
+def waf_update_ip_sets():
+    ddb_ips = get_ddb_ips()
+    if ddb_ips:
+        logger.info('log -- adding Regional and CloudFront WAF ip entries')
+        waf_update_ip_set(RegionalIpSet[0], RegionalIpSet[1], RegionalIpSet[2], ddb_ips)
+        waf_update_ip_set(CloudFrontIpSet[0], CloudFrontIpSet[1], CloudFrontIpSet[2], ddb_ips)
 
 
 # Get the current NACL Id associated with subnet
@@ -156,37 +164,12 @@ def get_nacl_rules(netacl_id):
     return naclrulesf
 
 
-# Get current DDB state data for NACL Id
-def get_nacl_meta(netacl_id):
-    ddb = boto3.resource('dynamodb')
-    table = ddb.Table(ACLMETATABLE)
-    ec2 = boto3.client('ec2')
-    response = ec2.describe_network_acls(
-        NetworkAclIds=[
-            netacl_id,
-            ]
-    )
-
-    # Get entries in DynamoDB table
-    ddbresponse = table.scan()
-    ddbentries = response['Items']
-
-    netacl = ddbresponse['NetworkAcls'][0]['Entries']
-    naclentries = []
-
-    for i in netacl:
-            entries.append(i)
-
-    return naclentries
-
-
 #Update NACL and DDB state table
 def update_nacl(netacl_id, host_ip, region):
     logger.info("log -- gd2acl entering update_nacl, netacl_id=%s, host_ip=%s" % (netacl_id, host_ip))
 
     ddb = boto3.resource('dynamodb')
     table = ddb.Table(ACLMETATABLE)
-    timestamp = int(time.time())
 
     hostipexists = table.query(
         KeyConditionExpression=Key('NetACLId').eq(netacl_id),
@@ -195,7 +178,7 @@ def update_nacl(netacl_id, host_ip, region):
 
     # Is HostIp already in table?
     if len(hostipexists['Items']) > 0:
-        logger.info("log -- host IP %s already in table... exiting GD2ACL update." % (host_ip))
+        logger.info("log -- host IP %s already in table... exiting NACL update." % (host_ip))
 
     else:
 
@@ -238,12 +221,6 @@ def update_nacl(netacl_id, host_ip, region):
                 logger.info("log -- adding new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
                 create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
-                logger.info('log -- adding Regional WAF ip entry')
-                ddb_ips = get_ddb_ips()
-                waf_update_ip_set(RegionalIpSet[0], RegionalIpSet[1], RegionalIpSet[2], ddb_ips)
-                logger.info('log -- adding CloudFront WAF ip entry')
-                waf_update_ip_set(CloudFrontIpSet[0], CloudFrontIpSet[1], CloudFrontIpSet[2], ddb_ips)
-                
                 logger.info("log -- all possible NACL rule numbers, %s." % (rulerange))
                 logger.info("log -- current DDB entries, %s." % (ddbrulerange))
                 logger.info("log -- current NACL entries, %s." % (naclrulerange))
@@ -270,20 +247,11 @@ def update_nacl(netacl_id, host_ip, region):
 
                 # check if IP is also recorded in a fresh finding, don't remove IP from blacklist in that case
                 response_nonexpired = table.scan( FilterExpression=Attr('CreatedAt').gt(oldrulets) & Attr('HostIp').eq(host_ip) )
-                if len(response_nonexpired['Items']) == 0:
-                    waf_update_ip_set(RegionalIpSet[0], RegionalIpSet[1], RegionalIpSet[2], host_ip)
-                    waf_update_ip_set(CloudFrontIpSet[0], CloudFrontIpSet[1], CloudFrontIpSet[2], host_ip)
-                    logger.info('log -- deleting REGION and CloudFront WAF IP set entry for host, %s from CloudFront Ip set %s and REGION IP set %s.' % (oldhostip, CLOUDFRONT_IP_SET, REGIONAL_IP_SET))
 
                 # Create new NACL rule, IP set entries and DDB state entry
                 logger.info("log -- adding new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
                 create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
-                create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
-                ddb_ips = get_ddb_ips()
-                waf_update_ip_set(RegionalIpSet[0], RegionalIpSet[1], RegionalIpSet[2], ddb_ips)
-                waf_update_ip_set(CloudFrontIpSet[0], CloudFrontIpSet[1], CloudFrontIpSet[2], ddb_ips)
-                logger.info('log -- adding REGION and CloudFront WAF IP set entry for host, %s from CloudFront Ip set %s and REGION IP set %s.' % (oldhostip, CLOUDFRONT_IP_SET, REGIONAL_IP_SET))
-
+                create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)                
                 logger.info("log -- all possible NACL rule numbers, %s." % (rulerange))
                 logger.info("log -- current DDB entries, %s." % (ddbrulerange))
                 logger.info("log -- current NACL entries, %s." % (naclrulerange))
@@ -307,8 +275,7 @@ def update_nacl(netacl_id, host_ip, region):
             create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
             create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
             ddb_ips = get_ddb_ips()
-            waf_update_ip_set(RegionalIpSet[0], RegionalIpSet[1], RegionalIpSet[2], ddb_ips)
-            waf_update_ip_set(CloudFrontIpSet[0], CloudFrontIpSet[1], CloudFrontIpSet[2], ddb_ips)
+
             logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
 
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
@@ -395,7 +362,6 @@ def delete_ddb_rule(netacl_id, created_at):
 
     ddb = boto3.resource('dynamodb')
     table = ddb.Table(ACLMETATABLE)
-    timestamp = int(time.time())
 
     response = table.delete_item(
         Key={
@@ -480,12 +446,16 @@ def lambda_handler(event, context):
 
         if len(HostIp) > 0:
             logger.info("log -- gd2acl attempting to process finding data: instanceID: %s - SubnetId: %s - RemoteHostIp: %s" % (instanceID[0], SubnetId[0], HostIp))
-            # Update VPC NACL, global and regional IP Sets
+            
+            # Update VPC NACL
             for ip in HostIp:
                 response = update_nacl(netacl_id=NetworkAclId, host_ip=ip, region=Region)
 
+            # Update WAF IP Sets
+            logger.info('log -- adding Regional and CloudFront WAF IP set entry for host, %s from CloudFront Ip set %s and REGION IP set %s.' % (HostIp, CLOUDFRONT_IP_SET, REGIONAL_IP_SET))
+            waf_update_ip_sets()
+
             #Send Notification
-            print(FindingID)
             admin_notify(str(HostIp), event["detail"]["type"], NetworkAclId, Region, str(instanceID), str(FindingID))
 
             logger.info("log -- processing GuardDuty finding completed successfully")

@@ -90,6 +90,14 @@ def waf_update_ip_set(ip_set_name, ip_set_id, ip_set_scope, source_ips):
             break
     else:
         logger.error("log -- waf_update_ip_set failed ALL attempts to call API")
+        
+
+def waf_update_ip_sets():
+    ddb_ips = get_ddb_ips()
+    if ddb_ips:
+        logger.info('log -- adding Regional and CloudFront WAF ip entries')
+        waf_update_ip_set(RegionalIpSet[0], RegionalIpSet[1], RegionalIpSet[2], ddb_ips)
+        waf_update_ip_set(CloudFrontIpSet[0], CloudFrontIpSet[1], CloudFrontIpSet[2], ddb_ips)
 
 
 def delete_netacl_rule(netacl_id, rule_no):
@@ -172,16 +180,15 @@ def lambda_handler(event, context):
                     if len(response_nonexpired['Items']) == 0:
                         delete_ddb_rule(item['NetACLId'], item['CreatedAt'])
                         # no fresher entry found for that IP
-                        logger.info('log -- deleting Regional WAF ip entry')
-                        ddb_ips = get_ddb_ips()
-                        waf_update_ip_set(RegionalIpSet[0], RegionalIpSet[1], RegionalIpSet[2], ddb_ips)
-                        logger.info('log -- deleting CloudFront WAF ip entry')
-                        waf_update_ip_set(CloudFrontIpSet[0], CloudFrontIpSet[1], CloudFrontIpSet[2], ddb_ips)
 
                 except Exception as e:
                     logger.error(e)
                     logger.error('log -- could not delete item')
 
+            # Update WAF IP Sets
+            logger.info('log -- update CloudFront Ip set %s and Regional IP set %s.' % (CLOUDFRONT_IP_SET, REGIONAL_IP_SET))
+            waf_update_ip_sets()
+            
             logger.info("Pruning Completed")
                 
         else:
