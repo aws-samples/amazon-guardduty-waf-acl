@@ -86,7 +86,7 @@ def find_values(id, json_repr):
 
 # Update WAF IP set
 def waf_update_ip_set(ip_set_name, ip_set_id, ip_set_scope, source_ips):
-    logger.info('creating waf object')
+    logger.info('log -- creating waf object')
     waf = boto3.client('wafv2')
 
     for attempt in range(API_CALL_NUM_RETRIES):
