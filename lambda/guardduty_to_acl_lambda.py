@@ -178,7 +178,8 @@ def update_nacl(netacl_id, host_ip, region):
 
     # Is HostIp already in table?
     if len(hostipexists['Items']) > 0:
-        logger.info("log -- host IP %s already in table... exiting NACL update." % (host_ip))
+        logger.info("log -- host IP %s already in table... exiting update." % (host_ip))
+        return False
 
     else:
 
@@ -226,6 +227,7 @@ def update_nacl(netacl_id, host_ip, region):
                 logger.info("log -- current NACL entries, %s." % (naclrulerange))
                 logger.info("log -- new rule number, %s." % (newruleno))
                 logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
+                return True
 
             if rulecount >= 10:
                 # Get oldest entry in DynamoDB table
@@ -256,6 +258,7 @@ def update_nacl(netacl_id, host_ip, region):
                 logger.info("log -- current DDB entries, %s." % (ddbrulerange))
                 logger.info("log -- current NACL entries, %s." % (naclrulerange))
                 logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount)))
+                return True
 
         else:
             # No entries in DDB Table start from 71
@@ -274,9 +277,8 @@ def update_nacl(netacl_id, host_ip, region):
             logger.info("log -- adding new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
             create_netacl_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno)
             create_ddb_rule(netacl_id=netacl_id, host_ip=host_ip, rule_no=newruleno, region=region)
-            ddb_ips = get_ddb_ips()
-
             logger.info("log -- rule count for NACL %s is %s." % (netacl_id, int(rulecount) + 1))
+            return True
 
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             return True
@@ -446,14 +448,18 @@ def lambda_handler(event, context):
 
         if len(HostIp) > 0:
             logger.info("log -- gd2acl attempting to process finding data: instanceID: %s - SubnetId: %s - RemoteHostIp: %s" % (instanceID[0], SubnetId[0], HostIp))
-            
+            update_counter = 0
+
             # Update VPC NACL
             for ip in HostIp:
                 response = update_nacl(netacl_id=NetworkAclId, host_ip=ip, region=Region)
+                if response is True:
+                    update_counter = update_counter + 1
 
             # Update WAF IP Sets
-            logger.info('log -- adding Regional and CloudFront WAF IP set entry for host, %s from CloudFront Ip set %s and REGION IP set %s.' % (HostIp, CLOUDFRONT_IP_SET, REGIONAL_IP_SET))
-            waf_update_ip_sets()
+            if update_counter > 0:
+                logger.info('log -- adding Regional and CloudFront WAF IP set entry for host, %s from CloudFront Ip set %s and REGION IP set %s.' % (HostIp, CLOUDFRONT_IP_SET, REGIONAL_IP_SET))
+                waf_update_ip_sets()
 
             #Send Notification
             admin_notify(str(HostIp), event["detail"]["type"], NetworkAclId, Region, str(instanceID), str(FindingID))
