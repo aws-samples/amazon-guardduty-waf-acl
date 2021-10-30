@@ -7,6 +7,8 @@
 - Template no longer supports an existing IP set. Regional and CloudFront IP sets are created automatically and can be included in your existing WAF ACLs.
 - New Regional and Global WAF ACLs can be created by changing parameter in the template from False to True
 
+---
+
 ### How to use Amazon GuardDuty and AWS Web Application Firewall to Automatically Block Suspicious Hosts
 
 This solution uses Amazon GuardDuty to automatically update AWS Web Application Firewall Access Control Lists (WAF ACLs) and VPC Network Access Control Lists (NACLs) in response to GuardDuty findings. After GuardDuty detects a suspicious activity, the solution updates these resources to block communication from the suspicious host while additional investigation and remediation may be performed.
