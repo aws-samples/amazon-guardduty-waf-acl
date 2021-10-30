@@ -1,5 +1,11 @@
 ## AWS GD2ACL
 
+### WAFv2 Notes
+
+- Updates for WAFv2 are in the [WAFv2 branch](https://github.com/aws-samples/amazon-guardduty-waf-acl/tree/wafv2/)
+- You will need to have the artifacts (zip files in artifacts folder) staged on S3 and also update **ArtifactsBucket** and **ArtifactsPrefix**
+- Template no longer supports an existing IP set. Regional and CloudFront IP sets are created automatically and can be included in your existing WAF ACLs.
+- New Regional and Global WAF ACLs can be created by changing parameter in the template from False to True
 
 ### How to use Amazon GuardDuty and AWS Web Application Firewall to Automatically Block Suspicious Hosts
 
