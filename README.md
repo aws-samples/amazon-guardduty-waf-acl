@@ -4,7 +4,7 @@
 
 - Updates for WAFv2 are in the [WAFv2 branch](https://github.com/aws-samples/amazon-guardduty-waf-acl/tree/wafv2/)
 - You will need to have the artifacts (zip files in artifacts folder) staged on S3 and also update **ArtifactsBucket** and **ArtifactsPrefix**
-- Template no longer supports an existing IP sets. Regional and CloudFront IP sets are created automatically and can be included in your existing WAF ACLs.
+- Template no longer supports an existing IP sets. Regional and CloudFront IP sets are created automatically and can be included in your existing WAF rules and ACLs.
 - New Regional and Global WAF ACLs can be created by changing parameter in the template from **False** to **True**
 
 ---
