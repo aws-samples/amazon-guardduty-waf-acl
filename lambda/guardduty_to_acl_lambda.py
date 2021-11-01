@@ -446,7 +446,8 @@ def lambda_handler(event, context):
                 HostIp.append((remoteIpDetail)[0]["ipAddressV4"])
                 NetworkAclId = get_netacl_id(subnet_id=SubnetId[0])
 
-        if len(HostIp) > 0:
+
+        if len(HostIp) > 0 and NetworkAclId:
             logger.info("log -- gd2acl attempting to process finding data: instanceID: %s - SubnetId: %s - RemoteHostIp: %s" % (instanceID[0], SubnetId[0], HostIp))
             update_counter = 0
 
