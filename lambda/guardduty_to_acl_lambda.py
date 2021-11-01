@@ -270,8 +270,8 @@ def update_nacl(netacl_id, host_ip, region):
 
             # Error and exit if NACL rules already present
             if naclrulerange:
-                logger.error("log -- NACL has existing entries, %s." % (naclrulerange))
-                exit()
+                logger.error("log -- NACL %s, has existing entries, %s." % (netacl_id, naclrulerange))
+                raise RuntimeError("NACL has existing entries.")
 
             # Create new NACL rule, IP set entries and DDB state entry
             logger.info("log -- adding new rule %s, HostIP %s, to NACL %s." % (newruleno, host_ip, netacl_id))
@@ -467,7 +467,7 @@ def lambda_handler(event, context):
             logger.info("log -- processing GuardDuty finding completed successfully")
 
         else:
-            logger.error("log -- unable to determine required info from finding - instanceID: %s, SubnetId: %s, RemoteIp: %s" % (instanceID, SubnetId, HostIp))
+            logger.warning("log -- unable to determine required info from finding - instanceID: %s, SubnetId: %s, RemoteIp: %s" % (instanceID, SubnetId, HostIp))
             pass
 
     except Exception as e:
