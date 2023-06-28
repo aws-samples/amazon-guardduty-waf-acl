@@ -36,12 +36,12 @@ Parameters:
     ConstraintDescription: ArtifactsBucket S3 bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-).
       It cannot start or end with a hyphen (-).
   ArtifactsPrefix:
-    Description: Path in the S3 bucket containing artifact files.
+    Description: Path in the S3 folder, e.g. "folder_name/" containing artifact files. Leave empty if artifacts are in root of S3 bucket.
     Type: String
-    Default: /
-    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    Default: ""
+    AllowedPattern: ^[0-9a-zA-Z-/|]*$
     ConstraintDescription: ArtifactsPrefix key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-),
-      and forward slash (/).
+      and forward slash (/). Leave empty if artifacts are in root of S3 bucket.
 
 Metadata:
   AWS::CloudFormation::Interface:
