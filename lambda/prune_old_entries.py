@@ -33,11 +33,18 @@ logger.setLevel(logging.INFO)
 API_CALL_NUM_RETRIES = 1
 ACLMETATABLE = os.environ['ACLMETATABLE']
 RETENTION = os.environ['RETENTION']
-CLOUDFRONT_IP_SET = os.environ['CLOUDFRONT_IP_SET']
 REGIONAL_IP_SET = os.environ['REGIONAL_IP_SET']
 
-CloudFrontIpSet = CLOUDFRONT_IP_SET.split("|")
 RegionalIpSet = REGIONAL_IP_SET.split("|")
+
+CloudFrontEnable = os.environ['CLOUDFRONT_ENABLE']
+
+if CloudFrontEnable == "true":
+    CLOUDFRONT_IP_SET = os.environ['CLOUDFRONT_IP_SET']
+    CloudFrontIpSet = CLOUDFRONT_IP_SET.split("|")
+elif CloudFrontEnable == "false":
+    CloudFrontIpSet = []
+
 
 #======================================================================================================================
 # Auxiliary Functions
@@ -97,7 +104,8 @@ def waf_update_ip_sets():
     if ddb_ips:
         logger.info('log -- adding Regional and CloudFront WAF ip entries')
         waf_update_ip_set(RegionalIpSet[0], RegionalIpSet[1], RegionalIpSet[2], ddb_ips)
-        waf_update_ip_set(CloudFrontIpSet[0], CloudFrontIpSet[1], CloudFrontIpSet[2], ddb_ips)
+        if CloudFrontEnable == "true":
+            waf_update_ip_set(CloudFrontIpSet[0], CloudFrontIpSet[1], CloudFrontIpSet[2], ddb_ips)
 
 
 def delete_netacl_rule(netacl_id, rule_no):
