@@ -121,12 +121,12 @@ Resources:
             Action:
             - wafv2:GetIPSet
             - wafv2:UpdateIPSet
-            Resource: !If [CloudFrontEnable, !Sub '${CloudFrontBlocklistIPSetV4.Arn}, ${RegionalBlocklistIPSetV4.Arn}', !Sub '${RegionalBlocklistIPSetV4.Arn}']
-          -
-            Effect: Allow
-            Action:
-            - wafv2:GetChangeToken
-            Resource: "*"
+            Resource:
+              Fn::If:
+                - CloudFrontEnable
+                - - !GetAtt CloudFrontBlocklistIPSetV4.Arn
+                  - !GetAtt RegionalBlocklistIPSetV4.Arn
+                - - !GetAtt RegionalBlocklistIPSetV4.Arn
           -
             Effect: "Allow"
             Action:
@@ -356,17 +356,12 @@ Resources:
             Action:
             - wafv2:GetIPSet
             - wafv2:UpdateIPSet
-            Resource: !If [CloudFrontEnable, !Sub '${CloudFrontBlocklistIPSetV4.Arn}, ${RegionalBlocklistIPSetV4.Arn}', !Sub '${RegionalBlocklistIPSetV4.Arn}']
-          -
-            Effect: Allow
-            Action:
-            - wafv2:GetChangeToken
-            Resource: "*"
-          -
-            Effect: Allow
-            Action:
-            - wafv2-regional:GetChangeToken
-            Resource: "*"
+            Resource:
+              Fn::If:
+                - CloudFrontEnable
+                - - !GetAtt CloudFrontBlocklistIPSetV4.Arn
+                  - !GetAtt RegionalBlocklistIPSetV4.Arn
+                - - !GetAtt RegionalBlocklistIPSetV4.Arn
           -
             Effect: "Allow"
             Action:
